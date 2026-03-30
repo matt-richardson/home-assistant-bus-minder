@@ -5,5 +5,5 @@ python3 -m venv venv
 source venv/bin/activate
 pip install --upgrade pip
 pip install -r requirements-dev.txt
-pre-commit install
+./venv/bin/pre-commit install
 echo "Venv ready. Run: source venv/bin/activate"
