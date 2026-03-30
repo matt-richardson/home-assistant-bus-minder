@@ -1,0 +1,13 @@
+{
+  "domain": "busminder",
+  "name": "BusMinder",
+  "version": "1.0.0",
+  "config_flow": true,
+  "documentation": "https://github.com/YOUR_GITHUB_USERNAME/hass-busminder",
+  "issue_tracker": "https://github.com/YOUR_GITHUB_USERNAME/hass-busminder/issues",
+  "codeowners": ["@YOUR_GITHUB_USERNAME"],
+  "requirements": [],
+  "dependencies": [],
+  "iot_class": "cloud_push",
+  "homeassistant": "2024.1.0"
+}
