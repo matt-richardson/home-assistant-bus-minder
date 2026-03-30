@@ -23,15 +23,15 @@ def auto_enable_custom_integrations(enable_custom_integrations):
 @pytest.fixture
 def config_entry_data():
     return {
-        CONF_OPERATOR_URL: "https://your-operator.com.au/live-tracking/your-school/",
-        CONF_ROUTE_GROUP_UUID: "ba62fb89-d818-481c-8a95-08f48e331aa1",
+        CONF_OPERATOR_URL: "https://example-buslines.com.au/live-tracking/springfield-high/",
+        CONF_ROUTE_GROUP_UUID: "aaaaaaaa-0000-4000-8000-000000000001",
         CONF_ROUTE_GROUP_NAME: "Springfield High - PM",
         CONF_ROUTES: [
-            {"trip_id": 62869, "name": "3428 : Springfield High 3 | Springfield High to Dawson St/Burwood Hwy - PM", "route_number": "3428"},
-            {"trip_id": 62867, "name": "3430 : Springfield High 2 | Springfield High to Boronia Station - PM", "route_number": "3430"},
+            {"trip_id": 10001, "name": "1001 : Springfield 1 | Springfield High to City - PM", "route_number": "1001"},
+            {"trip_id": 10002, "name": "1002 : Springfield 2 | Springfield High to City Station - PM", "route_number": "1002"},
         ],
-        CONF_MONITORED_STOP_ID: 905346,
-        CONF_MONITORED_STOP_NAME: "Springfield High - Bottom Area",
+        CONF_MONITORED_STOP_ID: 10001,
+        CONF_MONITORED_STOP_NAME: "Springfield High - Main Gate",
         CONF_MONITORED_STOP_LAT: -37.7877,
         CONF_MONITORED_STOP_LNG: 145.33912,
     }

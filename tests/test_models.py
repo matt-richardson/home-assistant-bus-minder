@@ -4,7 +4,7 @@ from custom_components.busminder.models import (
 )
 
 def test_decode_polyline_last_point_single():
-    # "blseFopavZ" decodes to approx (-37.7877, 145.33912) — Springfield High
+    # "blseFopavZ" decodes to approx (-37.7877, 145.33912) — Springfield High Main Gate
     lat, lng = decode_polyline_last_point("blseFopavZ")
     assert abs(lat - (-37.7877)) < 0.001
     assert abs(lng - 145.33912) < 0.001
@@ -22,41 +22,41 @@ def test_decode_polyline_last_point_empty():
 
 def test_stop_from_metadata():
     stop = Stop.from_metadata(
-        {"id": 905346, "position": "blseFopavZ", "name": "Springfield High - Bottom Area", "num": 4}
+        {"id": 10001, "position": "blseFopavZ", "name": "Springfield High - Main Gate", "num": 4}
     )
-    assert stop.id == 905346
-    assert stop.name == "Springfield High - Bottom Area"
+    assert stop.id == 10001
+    assert stop.name == "Springfield High - Main Gate"
     assert stop.sequence == 4
     assert abs(stop.lat - (-37.7877)) < 0.001
 
 def test_route_from_metadata():
     route = Route.from_metadata({
-        "id": 62869,
-        "name": "3428 : Springfield High 3 | Springfield High to Dawson St/Burwood Hwy - PM",
+        "id": 10001,
+        "name": "1001 : Springfield 1 | Springfield High to City - PM",
         "colour": "#08b8f0",
         "stops": [
-            {"id": 905346, "position": "blseFopavZ", "name": "Springfield High - Bottom Area", "num": 1}
+            {"id": 10001, "position": "blseFopavZ", "name": "Springfield High - Main Gate", "num": 1}
         ],
     })
-    assert route.trip_id == 62869
-    assert route.route_number == "3428"
+    assert route.trip_id == 10001
+    assert route.route_number == "1001"
     assert len(route.stops) == 1
-    assert route.stops[0].id == 905346
+    assert route.stops[0].id == 10001
 
 def test_route_number_extraction():
     route = Route.from_metadata({
-        "id": 62867,
-        "name": "3430 : Springfield High 2 | Springfield High to Boronia Station - PM",
+        "id": 10002,
+        "name": "1002 : Springfield 2 | Springfield High to City Station - PM",
         "colour": "#20e30f",
         "stops": [],
     })
-    assert route.route_number == "3430"
+    assert route.route_number == "1002"
 
 def test_bus_position_from_gps():
     import json
     from datetime import timezone
     raw = json.dumps({
-        "TripId": 62869,
+        "TripId": 10001,
         "BusId": 11528,
         "Route": "nuseFuyavZHAJ?H@L?HBJ@J@",
         "Reg": "1528",
@@ -65,7 +65,7 @@ def test_bus_position_from_gps():
         "LSDT": 1774845511180,
     })
     pos = BusPosition.from_gps_args(raw)
-    assert pos.trip_id == 62869
+    assert pos.trip_id == 10001
     assert pos.bus_reg == "1528"
     assert pos.last_stop_id == 906802
     assert pos.lat is not None

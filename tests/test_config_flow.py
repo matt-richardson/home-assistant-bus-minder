@@ -9,30 +9,30 @@ from custom_components.busminder.const import DOMAIN
 from custom_components.busminder.models import Stop, Route, RouteGroup
 from custom_components.busminder.scraper import ScraperError
 
-OPERATOR_URL = "https://your-operator.com.au/live-tracking/your-school/"
+OPERATOR_URL = "https://example-buslines.com.au/live-tracking/springfield-high/"
 
 MOCK_ROUTE_GROUP = RouteGroup(
-    uuid="ba62fb89-d818-481c-8a95-08f48e331aa1",
+    uuid="aaaaaaaa-0000-4000-8000-000000000001",
     name="Springfield High - PM",
     routes=[
         Route(
-            trip_id=62869,
-            name="3428 : Springfield High 3 | Springfield High to Dawson St/Burwood Hwy - PM",
-            route_number="3428",
+            trip_id=10001,
+            name="1001 : Springfield 1 | Springfield High to City - PM",
+            route_number="1001",
             colour="#08b8f0",
             stops=[
-                Stop(id=905346, name="Springfield High - Bottom Area", lat=-37.7877, lng=145.33912, sequence=1),
-                Stop(id=905347, name="St Peter Julian Eymard PS", lat=-37.792, lng=145.341, sequence=2),
+                Stop(id=10001, name="Springfield High - Main Gate", lat=-37.7877, lng=145.33912, sequence=1),
+                Stop(id=10002, name="Shelbyville Ave", lat=-37.792, lng=145.341, sequence=2),
             ],
         ),
         Route(
-            trip_id=62867,
-            name="3430 : Springfield High 2 | Springfield High to Boronia Station - PM",
-            route_number="3430",
+            trip_id=10002,
+            name="1002 : Springfield 2 | Springfield High to City Station - PM",
+            route_number="1002",
             colour="#20e30f",
             stops=[
-                Stop(id=905346, name="Springfield High - Bottom Area", lat=-37.7877, lng=145.33912, sequence=1),
-                Stop(id=905888, name="Boronia Station", lat=-37.860, lng=145.295, sequence=2),
+                Stop(id=10001, name="Springfield High - Main Gate", lat=-37.7877, lng=145.33912, sequence=1),
+                Stop(id=10003, name="City Station", lat=-37.860, lng=145.295, sequence=2),
             ],
         ),
     ],
@@ -92,7 +92,7 @@ async def test_step_pick_routes_proceeds_to_pick_stop(hass: HomeAssistant, mock_
         result["flow_id"], user_input={"operator_url": OPERATOR_URL}
     )
     result = await hass.config_entries.flow.async_configure(
-        result["flow_id"], user_input={"trip_ids": ["62869", "62867"]}
+        result["flow_id"], user_input={"trip_ids": ["10001", "10002"]}
     )
     assert result["type"] == FlowResultType.FORM
     assert result["step_id"] == "pick_stop"
@@ -106,12 +106,12 @@ async def test_full_flow_creates_entry(hass: HomeAssistant, mock_scraper):
         result["flow_id"], user_input={"operator_url": OPERATOR_URL}
     )
     result = await hass.config_entries.flow.async_configure(
-        result["flow_id"], user_input={"trip_ids": ["62869", "62867"]}
+        result["flow_id"], user_input={"trip_ids": ["10001", "10002"]}
     )
     result = await hass.config_entries.flow.async_configure(
-        result["flow_id"], user_input={"stop_id": "905346"}
+        result["flow_id"], user_input={"stop_id": "10001"}
     )
     assert result["type"] == FlowResultType.CREATE_ENTRY
-    assert result["data"]["route_group_uuid"] == "ba62fb89-d818-481c-8a95-08f48e331aa1"
-    assert result["data"]["monitored_stop_id"] == 905346
+    assert result["data"]["route_group_uuid"] == "aaaaaaaa-0000-4000-8000-000000000001"
+    assert result["data"]["monitored_stop_id"] == 10001
     assert len(result["data"]["routes"]) == 2

@@ -15,9 +15,9 @@ async def test_coordinator_dispatches_position(hass: HomeAssistant, mock_config_
 
     async def fake_stream():
         pos = BusPosition(
-            trip_id=62869, bus_id=11528, bus_reg="1528",
+            trip_id=10001, bus_id=11528, bus_reg="1528",
             lat=-37.820, lng=145.340,
-            last_stop_id=905346, last_stop_time=None,
+            last_stop_id=10001, last_stop_time=None,
             received_at=datetime.now(timezone.utc),
         )
         yield pos
@@ -31,8 +31,8 @@ async def test_coordinator_dispatches_position(hass: HomeAssistant, mock_config_
         await coordinator.async_start()
         await asyncio.sleep(0.1)  # let event loop tick
 
-    assert 62869 in coordinator.data
-    assert coordinator.data[62869].bus_reg == "1528"
+    assert 10001 in coordinator.data
+    assert coordinator.data[10001].bus_reg == "1528"
 
 
 async def test_coordinator_filters_unmonitored_routes(hass: HomeAssistant, mock_config_entry):

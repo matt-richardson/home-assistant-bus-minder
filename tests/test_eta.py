@@ -23,7 +23,7 @@ def make_bus(trip_id, lat, lng, last_stop_id):
 
 
 def make_route(trip_id, stops):
-    return Route(trip_id=trip_id, name="Test Route", route_number="3428",
+    return Route(trip_id=trip_id, name="Test Route", route_number="1001",
                  colour="#000", stops=stops)
 
 
@@ -42,8 +42,8 @@ def test_estimate_eta_approaching():
         make_stop(1, -37.780, 145.340, 1),   # first stop (bus passed this)
         make_stop(2, -37.785, 145.340, 2),   # monitored stop
     ]
-    route = make_route(62869, stops)
-    bus = make_bus(62869, -37.782, 145.340, last_stop_id=1)
+    route = make_route(10001, stops)
+    bus = make_bus(10001, -37.782, 145.340, last_stop_id=1)
     monitored_stop = stops[1]
 
     result = estimate_eta(bus, route, monitored_stop, speed_kmh=30.0)
@@ -59,8 +59,8 @@ def test_estimate_eta_bus_passed():
         make_stop(2, -37.785, 145.340, 2),  # monitored stop (already passed)
         make_stop(3, -37.790, 145.340, 3),
     ]
-    route = make_route(62869, stops)
-    bus = make_bus(62869, -37.788, 145.340, last_stop_id=3)  # past monitored
+    route = make_route(10001, stops)
+    bus = make_bus(10001, -37.788, 145.340, last_stop_id=3)  # past monitored
     monitored_stop = stops[1]
 
     result = estimate_eta(bus, route, monitored_stop, speed_kmh=30.0)
@@ -69,16 +69,16 @@ def test_estimate_eta_bus_passed():
 
 def test_estimate_eta_no_speed():
     stops = [make_stop(1, -37.780, 145.340, 1), make_stop(2, -37.785, 145.340, 2)]
-    route = make_route(62869, stops)
-    bus = make_bus(62869, -37.782, 145.340, last_stop_id=1)
+    route = make_route(10001, stops)
+    bus = make_bus(10001, -37.782, 145.340, last_stop_id=1)
     result = estimate_eta(bus, route, stops[1], speed_kmh=None)
     assert result is None
 
 
 def test_estimate_eta_unknown_last_stop():
     stops = [make_stop(1, -37.780, 145.340, 1), make_stop(2, -37.785, 145.340, 2)]
-    route = make_route(62869, stops)
-    bus = make_bus(62869, -37.782, 145.340, last_stop_id=999)  # not in route
+    route = make_route(10001, stops)
+    bus = make_bus(10001, -37.782, 145.340, last_stop_id=999)  # not in route
     result = estimate_eta(bus, route, stops[1], speed_kmh=30.0)
     assert result is None
 
@@ -86,8 +86,8 @@ def test_estimate_eta_unknown_last_stop():
 def test_speed_tracker_returns_none_with_one_point():
     from datetime import datetime, timezone
     tracker = SpeedTracker()
-    tracker.update(62869, -37.780, 145.340, datetime.now(timezone.utc))
-    assert tracker.get_speed(62869) is None
+    tracker.update(10001, -37.780, 145.340, datetime.now(timezone.utc))
+    assert tracker.get_speed(10001) is None
 
 
 def test_speed_tracker_computes_speed():
@@ -96,8 +96,8 @@ def test_speed_tracker_computes_speed():
     t0 = datetime(2026, 3, 30, 15, 0, 0, tzinfo=timezone.utc)
     t1 = t0 + timedelta(seconds=60)
     # ~0.556 km apart → ~33 km/h over 60 seconds
-    tracker.update(62869, -37.780, 145.340, t0)
-    tracker.update(62869, -37.785, 145.340, t1)
-    speed = tracker.get_speed(62869)
+    tracker.update(10001, -37.780, 145.340, t0)
+    tracker.update(10001, -37.785, 145.340, t1)
+    speed = tracker.get_speed(10001)
     assert speed is not None
     assert 25 < speed < 40

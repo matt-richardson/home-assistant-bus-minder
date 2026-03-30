@@ -8,7 +8,7 @@ from aioresponses import aioresponses as aioresponses_ctx
 from custom_components.busminder.signalr import SignalRClient
 from custom_components.busminder.models import BusPosition
 
-ROUTE_UUID = "ba62fb89-d818-481c-8a95-08f48e331aa1"
+ROUTE_UUID = "aaaaaaaa-0000-4000-8000-000000000001"
 TOKEN = "abc123token=="
 ENCODED_TOKEN = "abc123token%3D%3D"
 
@@ -20,7 +20,7 @@ GPS_MSG = json.dumps({
     "M": [{
         "M": "gps",
         "A": [json.dumps({
-            "TripId": 62869,
+            "TripId": 10001,
             "BusId": 11528,
             "Route": "nuseFuyavZHAJ?H@L?HBJ@J@",
             "Reg": "1528",
@@ -56,7 +56,7 @@ async def test_parse_gps_event():
         client = SignalRClient(session, ROUTE_UUID)
         positions = client._parse_sse_payload(GPS_MSG)
     assert len(positions) == 1
-    assert positions[0].trip_id == 62869
+    assert positions[0].trip_id == 10001
     assert positions[0].bus_reg == "1528"
     assert positions[0].last_stop_id == 906802
 
