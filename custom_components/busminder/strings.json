@@ -26,10 +26,54 @@
     "error": {
       "cannot_connect": "Could not connect to the tracking page. Check the URL and try again.",
       "no_busminder": "No BusMinder tracking widget found on that page.",
-      "unknown": "Unexpected error. Check the logs for details."
+      "unknown": "Unexpected error. Check the logs for details.",
+      "parse_error": "Could not read data from the BusMinder page. Check the logs for details."
     },
     "abort": {
       "already_configured": "This route group is already configured."
+    }
+  },
+  "options": {
+    "step": {
+      "user": {
+        "title": "Reconfigure BusMinder",
+        "description": "Update the tracking page URL.",
+        "data": {
+          "operator_url": "Tracking page URL"
+        }
+      },
+      "pick_routes": {
+        "title": "Select routes to monitor",
+        "description": "Choose the bus routes you want to track.",
+        "data": {
+          "trip_ids": "Routes"
+        }
+      },
+      "pick_stop": {
+        "title": "Select your stop",
+        "description": "Choose the stop where you want arrival estimates.",
+        "data": {
+          "stop_id": "Stop"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Could not connect to the tracking page. Check the URL and try again.",
+      "no_busminder": "No BusMinder tracking widget found on that page.",
+      "unknown": "Unexpected error. Check the logs for details."
+    }
+  },
+  "issues": {
+    "connection_failed": {
+      "title": "BusMinder connection lost",
+      "description": "BusMinder has been unable to connect to `{operator_url}` for several attempts. Check that the URL is still valid and that the service is reachable. The issue will resolve automatically when the connection is restored."
+    }
+  },
+  "entity": {
+    "sensor": {
+      "eta": {
+        "name": "ETA"
+      }
     }
   }
 }
