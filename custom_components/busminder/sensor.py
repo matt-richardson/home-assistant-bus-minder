@@ -16,10 +16,6 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from .const import (
     DOMAIN,
     CONF_ROUTES,
-    CONF_MONITORED_STOP_ID,
-    CONF_MONITORED_STOP_NAME,
-    CONF_MONITORED_STOP_LAT,
-    CONF_MONITORED_STOP_LNG,
 )
 from .coordinator import BusMinderCoordinator
 from .entity import BusMinderEntity
@@ -42,24 +38,23 @@ async def async_setup_entry(
 
     effective = {**entry.data, **entry.options}
 
-    monitored_stop = Stop(
-        id=effective[CONF_MONITORED_STOP_ID],
-        name=effective[CONF_MONITORED_STOP_NAME],
-        lat=effective[CONF_MONITORED_STOP_LAT],
-        lng=effective[CONF_MONITORED_STOP_LNG],
-        sequence=0,
-    )
-
     entities = []
     for route_data in effective.get(CONF_ROUTES, []):
+        stop = Stop(
+            id=route_data["stop_id"],
+            name=route_data["stop_name"],
+            lat=route_data["stop_lat"],
+            lng=route_data["stop_lng"],
+            sequence=0,
+        )
         route = Route(
             trip_id=route_data["trip_id"],
             name=route_data["name"],
             route_number=route_data["route_number"],
             colour="",
-            stops=[monitored_stop],  # enough for ETA calculation
+            stops=[stop],
         )
-        entities.append(BusEtaSensor(coordinator, entry, route, monitored_stop))
+        entities.append(BusEtaSensor(coordinator, entry, route, stop))
 
     async_add_entities(entities)
 

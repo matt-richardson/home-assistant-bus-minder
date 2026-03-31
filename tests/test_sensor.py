@@ -184,3 +184,25 @@ async def test_sensor_eta_minutes_returned(hass: HomeAssistant, mock_config_entr
     # The state may be "unknown" if stops don't include 10000, but we just verify no crash
     state = hass.states.get(entity_id)
     assert state is not None
+
+
+async def test_each_sensor_gets_its_own_stop(hass: HomeAssistant, mock_config_entry):
+    """sensor.async_setup_entry passes each route's own stop to its BusEtaSensor."""
+    from custom_components.busminder.sensor import async_setup_entry, BusEtaSensor
+    from unittest.mock import MagicMock
+
+    # Stub the coordinator directly — coordinator.py still reads old stop keys (fixed in Task 2)
+    mock_coordinator = MagicMock()
+    mock_config_entry.add_to_hass(hass)
+    hass.data.setdefault("busminder", {})[mock_config_entry.entry_id] = mock_coordinator
+
+    # Call async_setup_entry with a capturing add_entities callback
+    add_entities = MagicMock()
+    await async_setup_entry(hass, mock_config_entry, add_entities)
+    captured = add_entities.call_args[0][0]
+
+    sensors = [e for e in captured if isinstance(e, BusEtaSensor)]
+    assert len(sensors) == 2
+    stop_by_trip = {s._route.trip_id: s._monitored_stop.id for s in sensors}
+    assert stop_by_trip[10001] == 10001   # Main Gate
+    assert stop_by_trip[10002] == 10003   # City Station
