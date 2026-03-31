@@ -18,8 +18,9 @@ from .const import (
     CONF_MONITORED_STOP_LAT,
     CONF_MONITORED_STOP_LNG,
 )
+from .exceptions import BusMinderConnectionError
 from .models import RouteGroup
-from .scraper import ScraperError, fetch_route_group_from_operator_url
+from .scraper import fetch_route_group_from_operator_url
 
 
 class BusMinderConfigFlow(ConfigFlow, domain=DOMAIN):
@@ -40,7 +41,7 @@ class BusMinderConfigFlow(ConfigFlow, domain=DOMAIN):
             try:
                 async with aiohttp.ClientSession() as session:
                     group = await fetch_route_group_from_operator_url(session, url)
-            except ScraperError as exc:
+            except BusMinderConnectionError as exc:
                 msg = str(exc)
                 if "Cannot connect" in msg:
                     errors["base"] = "cannot_connect"

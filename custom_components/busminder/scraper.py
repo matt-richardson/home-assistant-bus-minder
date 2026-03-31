@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING
 import aiohttp
 
 from .const import MAPS_BASE_URL, SIGNALR_HEADERS
+from .exceptions import BusMinderConnectionError
 from .models import Route, RouteGroup
 
 if TYPE_CHECKING:
@@ -20,10 +21,6 @@ _ROUTEMAP_RE = re.compile(
     r"var liveMap\s*=\s*new routemap\s*\(\s*['\"][^'\"]*['\"]\s*,\s*(\{.*?\})\s*\)\s*;",
     re.DOTALL,
 )
-
-
-class ScraperError(Exception):
-    pass
 
 
 def _clean_title(title: str) -> str:
@@ -50,12 +47,12 @@ async def fetch_route_group_from_operator_url(
             resp.raise_for_status()
             html = await resp.text()
     except aiohttp.ClientError as exc:
-        raise ScraperError(f"Cannot connect to {operator_url}: {exc}") from exc
+        raise BusMinderConnectionError(f"Cannot connect to {operator_url}: {exc}") from exc
 
     # Step 2: extract UUID
     match = _IFRAME_RE.search(html)
     if not match:
-        raise ScraperError(f"No BusMinder iframe found on {operator_url}")
+        raise BusMinderConnectionError(f"No BusMinder iframe found on {operator_url}")
     uuid = match.group(1).lower()
 
     # Step 3: fetch route group page
@@ -65,17 +62,17 @@ async def fetch_route_group_from_operator_url(
             resp.raise_for_status()
             maps_html = await resp.text()
     except aiohttp.ClientError as exc:
-        raise ScraperError(f"Cannot fetch route group page {maps_url}: {exc}") from exc
+        raise BusMinderConnectionError(f"Cannot fetch route group page {maps_url}: {exc}") from exc
 
     # Step 4: parse routemap JSON from inline script
     match = _ROUTEMAP_RE.search(maps_html)
     if not match:
-        raise ScraperError("Could not find routemap data on BusMinder page")
+        raise BusMinderConnectionError("Could not find routemap data on BusMinder page")
 
     try:
         data = json.loads(match.group(1))
     except json.JSONDecodeError as exc:
-        raise ScraperError(f"Invalid routemap JSON: {exc}") from exc
+        raise BusMinderConnectionError(f"Invalid routemap JSON: {exc}") from exc
 
     # Step 5: extract title for group name
     title_match = re.search(r"<title>([^<]+)</title>", maps_html)

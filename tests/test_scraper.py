@@ -3,10 +3,8 @@ from pathlib import Path
 from aioresponses import aioresponses as aioresponses_ctx
 import aiohttp
 
-from custom_components.busminder.scraper import (
-    fetch_route_group_from_operator_url,
-    ScraperError,
-)
+from custom_components.busminder.scraper import fetch_route_group_from_operator_url
+from custom_components.busminder.exceptions import BusMinderConnectionError
 
 OPERATOR_HTML = (Path(__file__).parent / "fixtures" / "operator_page.html").read_text()
 ROUTE_GROUP_HTML = (Path(__file__).parent / "fixtures" / "route_group.html").read_text()
@@ -65,7 +63,7 @@ async def test_fetch_route_group_no_iframe(mock_aiohttp):
     mock_aiohttp.get(OPERATOR_URL, body="<html><body>No iframe here</body></html>", content_type="text/html")
 
     async with aiohttp.ClientSession() as session:
-        with pytest.raises(ScraperError, match="No BusMinder iframe"):
+        with pytest.raises(BusMinderConnectionError, match="No BusMinder iframe"):
             await fetch_route_group_from_operator_url(session, OPERATOR_URL)
 
 
@@ -73,5 +71,5 @@ async def test_fetch_route_group_connection_error(mock_aiohttp):
     mock_aiohttp.get(OPERATOR_URL, exception=aiohttp.ClientConnectionError("timeout"))
 
     async with aiohttp.ClientSession() as session:
-        with pytest.raises(ScraperError, match="Cannot connect"):
+        with pytest.raises(BusMinderConnectionError, match="Cannot connect"):
             await fetch_route_group_from_operator_url(session, OPERATOR_URL)

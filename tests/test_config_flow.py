@@ -7,7 +7,7 @@ from homeassistant.data_entry_flow import FlowResultType
 
 from custom_components.busminder.const import DOMAIN
 from custom_components.busminder.models import Stop, Route, RouteGroup
-from custom_components.busminder.scraper import ScraperError
+from custom_components.busminder.exceptions import BusMinderConnectionError
 
 OPERATOR_URL = "https://example-buslines.com.au/live-tracking/springfield-high/"
 
@@ -72,7 +72,7 @@ async def test_step_user_success_proceeds_to_pick_routes(hass: HomeAssistant, mo
 async def test_step_user_cannot_connect(hass: HomeAssistant):
     with patch(
         "custom_components.busminder.config_flow.fetch_route_group_from_operator_url",
-        side_effect=ScraperError("Cannot connect"),
+        side_effect=BusMinderConnectionError("Cannot connect"),
     ):
         result = await hass.config_entries.flow.async_init(
             DOMAIN, context={"source": config_entries.SOURCE_USER}
