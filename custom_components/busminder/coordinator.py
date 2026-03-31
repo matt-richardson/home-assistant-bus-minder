@@ -16,13 +16,9 @@ from .const import (
     CONF_OPERATOR_URL,
     CONF_ROUTE_GROUP_UUID,
     CONF_ROUTES,
-    CONF_MONITORED_STOP_ID,
-    CONF_MONITORED_STOP_LAT,
-    CONF_MONITORED_STOP_LNG,
-    CONF_MONITORED_STOP_NAME,
 )
 from .eta import SpeedTracker
-from .models import BusPosition, Route, Stop
+from .models import BusPosition, Route
 from .signalr import SignalRClient
 
 _LOGGER = logging.getLogger(__name__)
@@ -59,14 +55,6 @@ class BusMinderCoordinator(DataUpdateCoordinator[dict[int, BusPosition]]):
             for r in route_data
         }
         self._monitored_trip_ids: set[int] = set(self._monitored_routes.keys())
-
-        self._monitored_stop = Stop(
-            id=effective[CONF_MONITORED_STOP_ID],
-            name=effective[CONF_MONITORED_STOP_NAME],
-            lat=effective[CONF_MONITORED_STOP_LAT],
-            lng=effective[CONF_MONITORED_STOP_LNG],
-            sequence=0,
-        )
 
         self.etas: dict[int, Optional[float]] = {}  # trip_id → minutes or None
 
