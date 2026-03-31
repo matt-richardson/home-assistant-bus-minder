@@ -92,7 +92,7 @@ class BusMinderConfigFlow(ConfigFlow, domain=DOMAIN):
                 value=str(r.trip_id),
                 label=r.name,
             )
-            for r in self._route_group.routes
+            for r in sorted(self._route_group.routes, key=lambda r: r.route_number)
         ]
 
         return self.async_show_form(
@@ -250,7 +250,7 @@ class BusMinderOptionsFlow(OptionsFlow):
                 value=str(r.trip_id),
                 label=r.name,
             )
-            for r in self._route_group.routes
+            for r in sorted(self._route_group.routes, key=lambda r: r.route_number)
         ]
         current_selection = [str(t) for t in self._selected_trip_ids]
 
