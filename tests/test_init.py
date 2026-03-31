@@ -88,3 +88,40 @@ async def test_remove_config_entry_device(hass: HomeAssistant, mock_config_entry
     remaining = [r["trip_id"] for r in mock_config_entry.data[CONF_ROUTES]]
     assert 10001 not in remaining
     assert 10002 in remaining
+
+
+async def test_remove_config_entry_device_also_clears_options(hass: HomeAssistant, mock_config_entry):
+    """Removing a device clears the route from entry.options too, so it won't reappear in the options flow."""
+    async def empty_stream():
+        return
+        yield
+
+    with patch("custom_components.busminder.coordinator.SignalRClient") as MockClient:
+        MockClient.return_value.stream = empty_stream
+        mock_config_entry.add_to_hass(hass)
+        await hass.config_entries.async_setup(mock_config_entry.entry_id)
+        await hass.async_block_till_done()
+
+    # Simulate a previous options flow run that stored routes in entry.options
+    hass.config_entries.async_update_entry(
+        mock_config_entry,
+        options={CONF_ROUTES: [
+            {"trip_id": 10001, "name": "Route 1001", "route_number": "1001"},
+            {"trip_id": 10002, "name": "Route 1002", "route_number": "1002"},
+        ]},
+    )
+    await hass.async_block_till_done()
+
+    dev_reg = dr.async_get(hass)
+    device = dev_reg.async_get_device(
+        identifiers={(DOMAIN, f"{mock_config_entry.entry_id}_10001")}
+    )
+    assert device is not None
+
+    from custom_components.busminder import async_remove_config_entry_device
+    await async_remove_config_entry_device(hass, mock_config_entry, device)
+
+    # Route must be gone from both data and options
+    assert 10001 not in [r["trip_id"] for r in mock_config_entry.data.get(CONF_ROUTES, [])]
+    assert 10001 not in [r["trip_id"] for r in mock_config_entry.options.get(CONF_ROUTES, [])]
+    assert 10002 in [r["trip_id"] for r in mock_config_entry.options[CONF_ROUTES]]

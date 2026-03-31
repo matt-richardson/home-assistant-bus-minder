@@ -48,12 +48,11 @@ async def async_remove_config_entry_device(
     if trip_id is None:
         return False
 
-    # Remove the route from the config entry so it isn't recreated on reload
-    current_routes = list(entry.data.get(CONF_ROUTES, []))
-    updated_routes = [r for r in current_routes if r["trip_id"] != trip_id]
-    if len(updated_routes) != len(current_routes):
-        hass.config_entries.async_update_entry(
-            entry, data={**entry.data, CONF_ROUTES: updated_routes}
-        )
+    # Remove the route from both data and options so it isn't recreated on reload.
+    # The coordinator and options flow both use {**entry.data, **entry.options},
+    # so a stale CONF_ROUTES in options would override a cleaned-up entry.data.
+    new_data = {**entry.data, CONF_ROUTES: [r for r in entry.data.get(CONF_ROUTES, []) if r["trip_id"] != trip_id]}
+    new_options = {**entry.options, CONF_ROUTES: [r for r in entry.options.get(CONF_ROUTES, []) if r["trip_id"] != trip_id]} if CONF_ROUTES in entry.options else entry.options
+    hass.config_entries.async_update_entry(entry, data=new_data, options=new_options)
 
     return True
