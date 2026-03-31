@@ -99,6 +99,57 @@ async def test_step_pick_routes_proceeds_to_pick_stop(hass: HomeAssistant, mock_
 
 
 async def test_full_flow_creates_entry(hass: HomeAssistant, mock_scraper):
+    """Full flow creates a config entry with per-route stop data."""
+    result = await hass.config_entries.flow.async_init(
+        DOMAIN, context={"source": config_entries.SOURCE_USER}
+    )
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], user_input={"operator_url": OPERATOR_URL}
+    )
+    # pick_routes: select both routes
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], user_input={"trip_ids": ["10001", "10002"]}
+    )
+    # pick_stop for route 1001 (sorted first by route_number "1001")
+    assert result["step_id"] == "pick_stop"
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], user_input={"stop_id": "10001"}
+    )
+    # pick_stop for route 1002 (sorted second)
+    assert result["step_id"] == "pick_stop"
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], user_input={"stop_id": "10003"}
+    )
+    assert result["type"] == FlowResultType.CREATE_ENTRY
+    assert result["data"]["route_group_uuid"] == "aaaaaaaa-0000-4000-8000-000000000001"
+    routes = result["data"]["routes"]
+    assert len(routes) == 2
+    stop_by_trip = {r["trip_id"]: r["stop_id"] for r in routes}
+    assert stop_by_trip[10001] == 10001   # Main Gate
+    assert stop_by_trip[10002] == 10003   # City Station
+
+
+async def test_full_flow_single_route_one_stop_step(hass: HomeAssistant, mock_scraper):
+    """Selecting one route produces exactly one pick_stop step then CREATE_ENTRY."""
+    result = await hass.config_entries.flow.async_init(
+        DOMAIN, context={"source": config_entries.SOURCE_USER}
+    )
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], user_input={"operator_url": OPERATOR_URL}
+    )
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], user_input={"trip_ids": ["10001"]}
+    )
+    assert result["step_id"] == "pick_stop"
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], user_input={"stop_id": "10001"}
+    )
+    assert result["type"] == FlowResultType.CREATE_ENTRY
+    assert result["data"]["routes"][0]["stop_id"] == 10001
+
+
+async def test_full_flow_second_route_defaults_to_first_stop(hass: HomeAssistant, mock_scraper):
+    """After picking stop 10001 for route 1001, the route 1002 picker defaults to 10001 (shared stop)."""
     result = await hass.config_entries.flow.async_init(
         DOMAIN, context={"source": config_entries.SOURCE_USER}
     )
@@ -108,13 +159,16 @@ async def test_full_flow_creates_entry(hass: HomeAssistant, mock_scraper):
     result = await hass.config_entries.flow.async_configure(
         result["flow_id"], user_input={"trip_ids": ["10001", "10002"]}
     )
+    # Pick Main Gate (10001) for route 1001
     result = await hass.config_entries.flow.async_configure(
         result["flow_id"], user_input={"stop_id": "10001"}
     )
-    assert result["type"] == FlowResultType.CREATE_ENTRY
-    assert result["data"]["route_group_uuid"] == "aaaaaaaa-0000-4000-8000-000000000001"
-    assert result["data"]["monitored_stop_id"] == 10001
-    assert len(result["data"]["routes"]) == 2
+    assert result["step_id"] == "pick_stop"
+    # The schema for route 1002 should default to "10001" (stop 10001 exists in route 1002)
+    schema = result["data_schema"].schema
+    stop_field = next(k for k in schema if str(k) == "stop_id")
+    default_value = stop_field.default() if callable(stop_field.default) else stop_field.default
+    assert default_value == "10001"
 
 
 async def test_options_flow_shows_url_form(hass: HomeAssistant, mock_config_entry):
@@ -172,7 +226,9 @@ async def test_options_flow_full_reconfiguration(hass: HomeAssistant, mock_confi
 
     assert result["type"] == FlowResultType.CREATE_ENTRY
     assert mock_config_entry.options[CONF_OPERATOR_URL] == NEW_URL
-    assert len(mock_config_entry.options[CONF_ROUTES]) == 1
+    routes = mock_config_entry.options[CONF_ROUTES]
+    assert len(routes) == 1
+    assert routes[0]["stop_id"] == 10001
 
 
 async def test_options_flow_cannot_connect(hass: HomeAssistant, mock_config_entry):

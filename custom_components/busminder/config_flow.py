@@ -14,13 +14,9 @@ from .const import (
     CONF_ROUTE_GROUP_UUID,
     CONF_ROUTE_GROUP_NAME,
     CONF_ROUTES,
-    CONF_MONITORED_STOP_ID,
-    CONF_MONITORED_STOP_NAME,
-    CONF_MONITORED_STOP_LAT,
-    CONF_MONITORED_STOP_LNG,
 )
 from .exceptions import BusMinderConnectionError
-from .models import RouteGroup
+from .models import Route, RouteGroup
 from .scraper import fetch_route_group_from_operator_url
 
 
@@ -36,6 +32,9 @@ class BusMinderConfigFlow(ConfigFlow, domain=DOMAIN):
         self._operator_url: str = ""
         self._route_group: Optional[RouteGroup] = None
         self._selected_trip_ids: list[int] = []
+        self._route_queue: list[Route] = []
+        self._confirmed_routes: list[dict] = []
+        self._last_confirmed_stop_id: Optional[int] = None
 
     async def async_step_user(
         self, user_input: Optional[dict[str, Any]] = None
@@ -85,13 +84,16 @@ class BusMinderConfigFlow(ConfigFlow, domain=DOMAIN):
                 errors["base"] = "unknown"
             else:
                 self._selected_trip_ids = [int(t) for t in selected]
+                self._route_queue = sorted(
+                    [r for r in self._route_group.routes if r.trip_id in self._selected_trip_ids],
+                    key=lambda r: r.route_number,
+                )
+                self._confirmed_routes = []
+                self._last_confirmed_stop_id = None
                 return await self.async_step_pick_stop()
 
         route_options = [
-            selector.SelectOptionDict(
-                value=str(r.trip_id),
-                label=r.name,
-            )
+            selector.SelectOptionDict(value=str(r.trip_id), label=r.name)
             for r in sorted(self._route_group.routes, key=lambda r: r.route_number)
         ]
 
@@ -99,10 +101,7 @@ class BusMinderConfigFlow(ConfigFlow, domain=DOMAIN):
             step_id="pick_routes",
             data_schema=vol.Schema({
                 vol.Required("trip_ids"): selector.SelectSelector(
-                    selector.SelectSelectorConfig(
-                        options=route_options,
-                        multiple=True,
-                    )
+                    selector.SelectSelectorConfig(options=route_options, multiple=True)
                 ),
             }),
             errors=errors,
@@ -112,86 +111,92 @@ class BusMinderConfigFlow(ConfigFlow, domain=DOMAIN):
         self, user_input: Optional[dict[str, Any]] = None
     ) -> ConfigFlowResult:
         assert self._route_group is not None
-        assert self._selected_trip_ids
+        assert self._route_queue
+
+        current_route = self._route_queue[0]
 
         if user_input is not None:
             stop_id = int(user_input["stop_id"])
-            all_stops = self._route_group.all_stops()
-            stop = next((s for s in all_stops if s.id == stop_id), None)
+            stop = next((s for s in current_route.stops if s.id == stop_id), None)
             if stop is None:
                 return self.async_show_form(
                     step_id="pick_stop",
-                    data_schema=self._stop_schema(),
+                    data_schema=self._stop_schema(current_route),
+                    description_placeholders={"route_name": current_route.name},
                     errors={"base": "unknown"},
                 )
 
-            selected_routes = [
-                {"trip_id": r.trip_id, "name": r.name, "route_number": r.route_number, "uuid": r.uuid}
-                for r in self._route_group.routes
-                if r.trip_id in self._selected_trip_ids
-            ]
+            self._confirmed_routes.append({
+                "trip_id": current_route.trip_id,
+                "name": current_route.name,
+                "route_number": current_route.route_number,
+                "uuid": current_route.uuid,
+                "stop_id": stop.id,
+                "stop_name": stop.name,
+                "stop_lat": stop.lat,
+                "stop_lng": stop.lng,
+            })
+            self._last_confirmed_stop_id = stop.id
+            self._route_queue.pop(0)
+
+            if self._route_queue:
+                return await self.async_step_pick_stop()
 
             return self.async_create_entry(
-                title=f"{self._route_group.name} ({', '.join(r['route_number'] for r in selected_routes)})",
+                title=f"{self._route_group.name} ({', '.join(r['route_number'] for r in self._confirmed_routes)})",
                 data={
                     CONF_OPERATOR_URL: self._operator_url,
                     CONF_ROUTE_GROUP_UUID: self._route_group.uuid,
                     CONF_ROUTE_GROUP_NAME: self._route_group.name,
-                    CONF_ROUTES: selected_routes,
-                    CONF_MONITORED_STOP_ID: stop.id,
-                    CONF_MONITORED_STOP_NAME: stop.name,
-                    CONF_MONITORED_STOP_LAT: stop.lat,
-                    CONF_MONITORED_STOP_LNG: stop.lng,
+                    CONF_ROUTES: self._confirmed_routes,
                 },
             )
 
         return self.async_show_form(
             step_id="pick_stop",
-            data_schema=self._stop_schema(),
+            data_schema=self._stop_schema(current_route),
+            description_placeholders={"route_name": current_route.name},
         )
 
-    def _stop_schema(self) -> vol.Schema:
-        assert self._route_group is not None
-        selected_routes = [
-            r for r in self._route_group.routes
-            if r.trip_id in self._selected_trip_ids
-        ]
-        seen_ids: set[int] = set()
-        stop_options = []
-        for route in selected_routes:
-            for stop in route.stops:
-                if stop.id not in seen_ids:
-                    seen_ids.add(stop.id)
-                    stop_options.append(
-                        selector.SelectOptionDict(
-                            value=str(stop.id),
-                            label=stop.name,
-                        )
-                    )
-        stop_options.sort(key=lambda o: o["label"])
-
+    def _stop_schema(self, route: Route) -> vol.Schema:
+        stop_options = sorted(
+            [
+                selector.SelectOptionDict(value=str(s.id), label=s.name)
+                for s in route.stops
+            ],
+            key=lambda o: o["label"],
+        )
+        stop_ids_in_route = {s.id for s in route.stops}
+        default = (
+            str(self._last_confirmed_stop_id)
+            if self._last_confirmed_stop_id in stop_ids_in_route
+            else vol.UNDEFINED
+        )
         return vol.Schema({
-            vol.Required("stop_id"): selector.SelectSelector(
-                selector.SelectSelectorConfig(
-                    options=stop_options,
-                    multiple=False,
-                )
+            vol.Required("stop_id", default=default): selector.SelectSelector(
+                selector.SelectSelectorConfig(options=stop_options, multiple=False)
             ),
         })
 
 
 class BusMinderOptionsFlow(OptionsFlow):
-    """Options flow — re-run the full 3-step config sequence to reconfigure."""
+    """Options flow — re-run the full config sequence to reconfigure."""
 
     def __init__(self, entry: ConfigEntry) -> None:
         self._entry = entry
-        # Pre-populate from current config (options override data if present)
         current = {**entry.data, **entry.options}
         self._operator_url: str = current.get(CONF_OPERATOR_URL, "")
         self._route_group: Optional[RouteGroup] = None
         self._selected_trip_ids: list[int] = [
             r["trip_id"] for r in current.get(CONF_ROUTES, [])
         ]
+        self._route_queue: list[Route] = []
+        self._confirmed_routes: list[dict] = []
+        # Pre-populate from first route's current stop so it defaults correctly on re-open
+        first_route = next(iter(current.get(CONF_ROUTES, [])), None)
+        self._last_confirmed_stop_id: Optional[int] = (
+            first_route.get("stop_id") if first_route else None
+        )
 
     async def async_step_init(
         self, user_input: Optional[dict[str, Any]] = None
@@ -243,13 +248,16 @@ class BusMinderOptionsFlow(OptionsFlow):
                 errors["base"] = "unknown"
             else:
                 self._selected_trip_ids = [int(t) for t in selected]
+                self._route_queue = sorted(
+                    [r for r in self._route_group.routes if r.trip_id in self._selected_trip_ids],
+                    key=lambda r: r.route_number,
+                )
+                self._confirmed_routes = []
+                # Keep _last_confirmed_stop_id so re-opening the options flow pre-selects existing stops
                 return await self.async_step_pick_stop()
 
         route_options = [
-            selector.SelectOptionDict(
-                value=str(r.trip_id),
-                label=r.name,
-            )
+            selector.SelectOptionDict(value=str(r.trip_id), label=r.name)
             for r in sorted(self._route_group.routes, key=lambda r: r.route_number)
         ]
         current_selection = [str(t) for t in self._selected_trip_ids]
@@ -258,10 +266,7 @@ class BusMinderOptionsFlow(OptionsFlow):
             step_id="pick_routes",
             data_schema=vol.Schema({
                 vol.Required("trip_ids", default=current_selection): selector.SelectSelector(
-                    selector.SelectSelectorConfig(
-                        options=route_options,
-                        multiple=True,
-                    )
+                    selector.SelectSelectorConfig(options=route_options, multiple=True)
                 ),
             }),
             errors=errors,
@@ -271,67 +276,69 @@ class BusMinderOptionsFlow(OptionsFlow):
         self, user_input: Optional[dict[str, Any]] = None
     ) -> ConfigFlowResult:
         assert self._route_group is not None
-        assert self._selected_trip_ids
+        assert self._route_queue
+
+        current_route = self._route_queue[0]
 
         if user_input is not None:
             stop_id = int(user_input["stop_id"])
-            all_stops = self._route_group.all_stops()
-            stop = next((s for s in all_stops if s.id == stop_id), None)
+            stop = next((s for s in current_route.stops if s.id == stop_id), None)
             if stop is None:
                 return self.async_show_form(
                     step_id="pick_stop",
-                    data_schema=self._stop_schema(),
+                    data_schema=self._stop_schema(current_route),
+                    description_placeholders={"route_name": current_route.name},
                     errors={"base": "unknown"},
                 )
 
-            selected_routes = [
-                {"trip_id": r.trip_id, "name": r.name, "route_number": r.route_number, "uuid": r.uuid}
-                for r in self._route_group.routes
-                if r.trip_id in self._selected_trip_ids
-            ]
+            self._confirmed_routes.append({
+                "trip_id": current_route.trip_id,
+                "name": current_route.name,
+                "route_number": current_route.route_number,
+                "uuid": current_route.uuid,
+                "stop_id": stop.id,
+                "stop_name": stop.name,
+                "stop_lat": stop.lat,
+                "stop_lng": stop.lng,
+            })
+            self._last_confirmed_stop_id = stop.id
+            self._route_queue.pop(0)
 
-            new_config = {
-                CONF_OPERATOR_URL: self._operator_url,
-                CONF_ROUTE_GROUP_UUID: self._route_group.uuid,
-                CONF_ROUTE_GROUP_NAME: self._route_group.name,
-                CONF_ROUTES: selected_routes,
-                CONF_MONITORED_STOP_ID: stop.id,
-                CONF_MONITORED_STOP_NAME: stop.name,
-                CONF_MONITORED_STOP_LAT: stop.lat,
-                CONF_MONITORED_STOP_LNG: stop.lng,
-            }
-            return self.async_create_entry(title="", data=new_config)
+            if self._route_queue:
+                return await self.async_step_pick_stop()
+
+            return self.async_create_entry(
+                title="",
+                data={
+                    CONF_OPERATOR_URL: self._operator_url,
+                    CONF_ROUTE_GROUP_UUID: self._route_group.uuid,
+                    CONF_ROUTE_GROUP_NAME: self._route_group.name,
+                    CONF_ROUTES: self._confirmed_routes,
+                },
+            )
 
         return self.async_show_form(
             step_id="pick_stop",
-            data_schema=self._stop_schema(),
+            data_schema=self._stop_schema(current_route),
+            description_placeholders={"route_name": current_route.name},
         )
 
-    def _stop_schema(self) -> vol.Schema:
-        assert self._route_group is not None
-        selected_routes = [
-            r for r in self._route_group.routes
-            if r.trip_id in self._selected_trip_ids
-        ]
-        seen_ids: set[int] = set()
-        stop_options = []
-        for route in selected_routes:
-            for stop in route.stops:
-                if stop.id not in seen_ids:
-                    seen_ids.add(stop.id)
-                    stop_options.append(
-                        selector.SelectOptionDict(
-                            value=str(stop.id),
-                            label=stop.name,
-                        )
-                    )
-        stop_options.sort(key=lambda o: o["label"])
-
+    def _stop_schema(self, route: Route) -> vol.Schema:
+        stop_options = sorted(
+            [
+                selector.SelectOptionDict(value=str(s.id), label=s.name)
+                for s in route.stops
+            ],
+            key=lambda o: o["label"],
+        )
+        stop_ids_in_route = {s.id for s in route.stops}
+        default = (
+            str(self._last_confirmed_stop_id)
+            if self._last_confirmed_stop_id in stop_ids_in_route
+            else vol.UNDEFINED
+        )
         return vol.Schema({
-            vol.Required("stop_id"): selector.SelectSelector(
-                selector.SelectSelectorConfig(
-                    options=stop_options,
-                    multiple=False,
-                )
+            vol.Required("stop_id", default=default): selector.SelectSelector(
+                selector.SelectSelectorConfig(options=stop_options, multiple=False)
             ),
         })
