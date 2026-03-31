@@ -87,10 +87,10 @@ class BusMinderCoordinator(DataUpdateCoordinator[dict[int, BusPosition]]):
                     async for position in client.stream():
                         self._on_position(position)
                     # Stream ended cleanly — treat as a transient failure to reconnect
-                    raise Exception("SSE stream ended unexpectedly")
-            except asyncio.CancelledError:
+                    raise RuntimeError("SSE stream ended unexpectedly")
+            except asyncio.CancelledError:  # pylint: disable=try-except-raise
                 raise
-            except Exception as exc:
+            except Exception as exc:  # pylint: disable=broad-exception-caught
                 self._failure_count += 1
                 _LOGGER.warning(
                     "BusMinder SSE error (attempt %d, reconnecting in %ds): %s",
@@ -129,6 +129,10 @@ class BusMinderCoordinator(DataUpdateCoordinator[dict[int, BusPosition]]):
         new_data = dict(self.data or {})
         new_data[pos.trip_id] = pos
         self.async_set_updated_data(new_data)
+
+    @property
+    def monitored_trip_ids(self) -> set[int]:
+        return self._monitored_trip_ids
 
     def get_speed(self, trip_id: int) -> Optional[float]:
         return self._speed_tracker.get_speed(trip_id)

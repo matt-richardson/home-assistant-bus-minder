@@ -20,7 +20,7 @@ class BusMinderEntity(CoordinatorEntity[BusMinderCoordinator]):
         coordinator: BusMinderCoordinator,
         entry: ConfigEntry,
         trip_id: int,
-        route_number: str,
+        _route_number: str,
         route_name: str,
     ) -> None:
         super().__init__(coordinator)

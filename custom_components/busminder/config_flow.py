@@ -14,7 +14,7 @@ from .models import Route, RouteGroup
 from .scraper import fetch_route_group_from_operator_url
 
 
-class BusMinderConfigFlow(ConfigFlow, domain=DOMAIN):  # type: ignore[call-arg]
+class BusMinderConfigFlow(ConfigFlow, domain=DOMAIN):  # type: ignore[call-arg]  # pylint: disable=abstract-method
     VERSION = 1
 
     @staticmethod
@@ -46,7 +46,7 @@ class BusMinderConfigFlow(ConfigFlow, domain=DOMAIN):  # type: ignore[call-arg]
                     errors["base"] = "no_busminder"
                 else:
                     errors["base"] = "unknown"
-            except Exception:
+            except Exception:  # pylint: disable=broad-exception-caught
                 errors["base"] = "unknown"
             else:
                 await self.async_set_unique_id(group.uuid)
@@ -185,7 +185,7 @@ class BusMinderOptionsFlow(OptionsFlow):
         first_route = next(iter(current.get(CONF_ROUTES, [])), None)
         self._last_confirmed_stop_id: Optional[int] = first_route.get("stop_id") if first_route else None
 
-    async def async_step_init(self, user_input: Optional[dict[str, Any]] = None) -> ConfigFlowResult:
+    async def async_step_init(self, _user_input: Optional[dict[str, Any]] = None) -> ConfigFlowResult:
         return await self.async_step_user()
 
     async def async_step_user(self, user_input: Optional[dict[str, Any]] = None) -> ConfigFlowResult:
@@ -204,7 +204,7 @@ class BusMinderOptionsFlow(OptionsFlow):
                     errors["base"] = "no_busminder"
                 else:
                     errors["base"] = "unknown"
-            except Exception:
+            except Exception:  # pylint: disable=broad-exception-caught
                 errors["base"] = "unknown"
             else:
                 self._operator_url = url

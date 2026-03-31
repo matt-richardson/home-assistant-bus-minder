@@ -1,14 +1,14 @@
 {
   "domain": "busminder",
   "name": "BusMinder",
-  "version": "0.2.0",
-  "config_flow": true,
-  "integration_type": "service",
-  "quality_scale": "silver",
-  "documentation": "https://github.com/matt-richardson/home-assistant-bus-minder",
-  "issue_tracker": "https://github.com/matt-richardson/home-assistant-bus-minder/issues",
   "codeowners": ["@matt-richardson"],
-  "requirements": ["aiohttp>=3.9"],
+  "config_flow": true,
   "dependencies": [],
-  "iot_class": "cloud_push"
+  "documentation": "https://github.com/matt-richardson/home-assistant-bus-minder",
+  "integration_type": "service",
+  "iot_class": "cloud_push",
+  "issue_tracker": "https://github.com/matt-richardson/home-assistant-bus-minder/issues",
+  "quality_scale": "silver",
+  "requirements": ["aiohttp>=3.9"],
+  "version": "0.2.0"
 }

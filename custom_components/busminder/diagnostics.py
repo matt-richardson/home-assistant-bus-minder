@@ -31,7 +31,7 @@ async def async_get_config_entry_diagnostics(hass: HomeAssistant, entry: ConfigE
         "coordinator": {
             "last_update_success": coordinator.last_update_success,
             "connection_failed": coordinator.connection_failed,
-            "monitored_routes": list(coordinator._monitored_trip_ids),
+            "monitored_routes": list(coordinator.monitored_trip_ids),
             "positions": positions,
         },
     }

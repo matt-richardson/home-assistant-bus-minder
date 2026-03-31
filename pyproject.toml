@@ -10,6 +10,20 @@ python_version = "3.13"
 check_untyped_defs = true
 ignore_missing_imports = true
 
+[tool.pylint.main]
+max-line-length = 120
+
+[tool.pylint."messages control"]
+disable = [
+  "missing-module-docstring",
+  "missing-class-docstring",
+  "missing-function-docstring",
+  "too-many-arguments",
+  "too-many-positional-arguments",
+  "too-many-instance-attributes",
+  "too-few-public-methods",
+]
+
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
