@@ -1,22 +1,16 @@
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timezone
 from typing import Optional
 
-from homeassistant.components.sensor import (
-    SensorDeviceClass,
-    SensorEntity,
-    SensorStateClass,
-)
+from homeassistant.components.sensor import SensorEntity, SensorStateClass
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import UnitOfTime
-from homeassistant.core import HomeAssistant, callback
+from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
-from .const import (
-    DOMAIN,
-    CONF_ROUTES,
-)
+
+from .const import CONF_ROUTES, DOMAIN
 from .coordinator import BusMinderCoordinator
 from .entity import BusMinderEntity
 from .eta import estimate_eta

@@ -1,25 +1,26 @@
-import pytest
-from datetime import datetime, timezone, timedelta
-from unittest.mock import patch, MagicMock
+from datetime import datetime, timedelta, timezone
+from unittest.mock import MagicMock, patch
 
-from homeassistant.core import HomeAssistant
 from homeassistant.const import STATE_UNAVAILABLE
+from homeassistant.core import HomeAssistant
 
-from custom_components.busminder.models import BusPosition, Stop, Route
+from custom_components.busminder.models import BusPosition
 
 
 def make_position(trip_id=10001, lat=-37.820, lng=145.340, last_stop_id=10001):
     return BusPosition(
-        trip_id=trip_id, bus_id=1, bus_reg="1528",
-        lat=lat, lng=lng,
-        last_stop_id=last_stop_id, last_stop_time=None,
+        trip_id=trip_id,
+        bus_id=1,
+        bus_reg="1528",
+        lat=lat,
+        lng=lng,
+        last_stop_id=last_stop_id,
+        last_stop_time=None,
         received_at=datetime.now(timezone.utc),
     )
 
 
-async def test_sensor_unavailable_before_first_update(
-    hass: HomeAssistant, mock_config_entry
-):
+async def test_sensor_unavailable_before_first_update(hass: HomeAssistant, mock_config_entry):
     async def empty_stream():
         return
         yield  # make it an async generator
@@ -41,6 +42,7 @@ async def test_sensor_shows_eta_minutes(hass: HomeAssistant, mock_config_entry):
     async def fake_stream():
         yield pos
         import asyncio
+
         await asyncio.sleep(9999)
 
     with patch("custom_components.busminder.coordinator.SignalRClient") as MockClient:
@@ -53,6 +55,7 @@ async def test_sensor_shows_eta_minutes(hass: HomeAssistant, mock_config_entry):
             await hass.config_entries.async_setup(mock_config_entry.entry_id)
             await hass.async_block_till_done()
             import asyncio
+
             await asyncio.sleep(0.1)
             await hass.async_block_till_done()
 
@@ -68,6 +71,7 @@ async def test_sensor_shows_eta_minutes(hass: HomeAssistant, mock_config_entry):
 
 async def test_sensor_unavailable_when_connection_failed(hass: HomeAssistant, mock_config_entry):
     """Sensor is unavailable when coordinator.connection_failed is True."""
+
     async def empty_stream():
         return
         yield
@@ -92,9 +96,13 @@ async def test_sensor_attributes_not_running_when_stale(hass: HomeAssistant, moc
     """Sensor shows not_running status when position data is stale (>5 min old)."""
     stale_time = datetime.now(timezone.utc) - timedelta(seconds=400)
     pos = BusPosition(
-        trip_id=10001, bus_id=1, bus_reg="1528",
-        lat=-37.820, lng=145.340,
-        last_stop_id=10001, last_stop_time=None,
+        trip_id=10001,
+        bus_id=1,
+        bus_reg="1528",
+        lat=-37.820,
+        lng=145.340,
+        last_stop_id=10001,
+        last_stop_time=None,
         received_at=stale_time,
     )
 
@@ -119,9 +127,8 @@ async def test_sensor_attributes_not_running_when_stale(hass: HomeAssistant, moc
 
 async def test_sensor_extra_attrs_no_position(hass: HomeAssistant, mock_config_entry):
     """BusEtaSensor.extra_state_attributes returns not_running dict when no position data."""
+    from custom_components.busminder.models import Route, Stop
     from custom_components.busminder.sensor import BusEtaSensor
-    from custom_components.busminder.models import Stop, Route
-    from unittest.mock import MagicMock
 
     async def empty_stream():
         return
@@ -146,13 +153,15 @@ async def test_sensor_extra_attrs_no_position(hass: HomeAssistant, mock_config_e
 
 async def test_sensor_eta_minutes_returned(hass: HomeAssistant, mock_config_entry):
     """Sensor native_value returns minutes when ETA is calculable."""
-    from custom_components.busminder.models import Stop, Route
     from unittest.mock import patch as _patch
 
     # Position where bus is before the monitored stop (last_stop_id=10000, not the monitored stop 10001)
     pos = BusPosition(
-        trip_id=10001, bus_id=1, bus_reg="1528",
-        lat=-37.820, lng=145.340,
+        trip_id=10001,
+        bus_id=1,
+        bus_reg="1528",
+        lat=-37.820,
+        lng=145.340,
         last_stop_id=10000,  # a stop before the monitored stop
         last_stop_time=None,
         received_at=datetime.now(timezone.utc),
@@ -170,10 +179,6 @@ async def test_sensor_eta_minutes_returned(hass: HomeAssistant, mock_config_entr
 
     coordinator = hass.data["busminder"][mock_config_entry.entry_id]
 
-    # Patch the sensor's route to have both stops so ETA can be calculated
-    from custom_components.busminder.sensor import BusEtaSensor
-    from homeassistant.helpers import entity_registry as er
-    ent_reg = er.async_get(hass)
     entity_id = "sensor.busminder_1001_eta"
 
     # Manually inject position data and patch get_speed to return a valid speed
@@ -188,8 +193,9 @@ async def test_sensor_eta_minutes_returned(hass: HomeAssistant, mock_config_entr
 
 async def test_each_sensor_gets_its_own_stop(hass: HomeAssistant, mock_config_entry):
     """sensor.async_setup_entry passes each route's own stop to its BusEtaSensor."""
-    from custom_components.busminder.sensor import async_setup_entry, BusEtaSensor
     from unittest.mock import MagicMock
+
+    from custom_components.busminder.sensor import BusEtaSensor, async_setup_entry
 
     # Stub the coordinator directly — coordinator.py still reads old stop keys (fixed in Task 2)
     mock_coordinator = MagicMock()
@@ -204,5 +210,5 @@ async def test_each_sensor_gets_its_own_stop(hass: HomeAssistant, mock_config_en
     sensors = [e for e in captured if isinstance(e, BusEtaSensor)]
     assert len(sensors) == 2
     stop_by_trip = {s._route.trip_id: s._monitored_stop.id for s in sensors}
-    assert stop_by_trip[10001] == 10001   # Main Gate
-    assert stop_by_trip[10002] == 10003   # City Station
+    assert stop_by_trip[10001] == 10001  # Main Gate
+    assert stop_by_trip[10002] == 10003  # City Station

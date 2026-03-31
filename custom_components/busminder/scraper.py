@@ -34,9 +34,7 @@ def _clean_title(title: str) -> str:
     return " - ".join(parts).strip()
 
 
-async def _fetch_route_group(
-    session: aiohttp.ClientSession, uuid: str
-) -> RouteGroup:
+async def _fetch_route_group(session: aiohttp.ClientSession, uuid: str) -> RouteGroup:
     """Fetch a single route group from maps.busminder.com.au by UUID."""
     maps_url = f"{MAPS_BASE_URL}/route/live/{uuid.upper()}"
     try:
@@ -63,9 +61,7 @@ async def _fetch_route_group(
     return RouteGroup(uuid=uuid, name=group_name, routes=routes)
 
 
-async def fetch_route_group_from_operator_url(
-    session: aiohttp.ClientSession, operator_url: str
-) -> RouteGroup:
+async def fetch_route_group_from_operator_url(session: aiohttp.ClientSession, operator_url: str) -> RouteGroup:
     """
     Fetch the operator's tracking page, extract all BusMinder UUIDs from
     embedded iframes, fetch each route group, and return them merged.
@@ -89,6 +85,7 @@ async def fetch_route_group_from_operator_url(
 
     # Derive a combined name: strip trailing " - AM" / " - PM" suffixes and deduplicate
     import re as _re
+
     base_names = [_re.sub(r"\s*-\s*(AM|PM)\s*$", "", g.name, flags=_re.IGNORECASE).strip() for g in groups]
     combined_name = base_names[0] if len(set(base_names)) == 1 else groups[0].name
 

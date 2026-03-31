@@ -1,10 +1,9 @@
 import asyncio
-import json
-import pytest
 from datetime import datetime, timezone
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import patch
 
 from homeassistant.core import HomeAssistant
+
 from custom_components.busminder.coordinator import BusMinderCoordinator
 from custom_components.busminder.models import BusPosition
 
@@ -15,17 +14,19 @@ async def test_coordinator_dispatches_position(hass: HomeAssistant, mock_config_
 
     async def fake_stream():
         pos = BusPosition(
-            trip_id=10001, bus_id=11528, bus_reg="1528",
-            lat=-37.820, lng=145.340,
-            last_stop_id=10001, last_stop_time=None,
+            trip_id=10001,
+            bus_id=11528,
+            bus_reg="1528",
+            lat=-37.820,
+            lng=145.340,
+            last_stop_id=10001,
+            last_stop_time=None,
             received_at=datetime.now(timezone.utc),
         )
         yield pos
         await asyncio.sleep(9999)  # hold open
 
-    with patch(
-        "custom_components.busminder.coordinator.SignalRClient"
-    ) as MockClient:
+    with patch("custom_components.busminder.coordinator.SignalRClient") as MockClient:
         MockClient.return_value.stream = fake_stream
         coordinator = BusMinderCoordinator(hass, mock_config_entry)
         await coordinator.async_start()
@@ -41,9 +42,12 @@ async def test_coordinator_filters_unmonitored_routes(hass: HomeAssistant, mock_
     async def fake_stream():
         pos = BusPosition(
             trip_id=99999,  # not in config
-            bus_id=1, bus_reg="XXXX",
-            lat=-37.800, lng=145.300,
-            last_stop_id=None, last_stop_time=None,
+            bus_id=1,
+            bus_reg="XXXX",
+            lat=-37.800,
+            lng=145.300,
+            last_stop_id=None,
+            last_stop_time=None,
             received_at=datetime.now(timezone.utc),
         )
         yield pos
@@ -86,6 +90,7 @@ async def test_repair_issue_raised_after_three_failures(hass: HomeAssistant, moc
 
 async def test_connection_failed_flag_set_after_three_failures(hass: HomeAssistant, mock_config_entry):
     """coordinator.connection_failed is True after RECONNECT_THRESHOLD failures."""
+
     async def failing_stream():
         raise Exception("SSE connection lost")
         yield
@@ -104,9 +109,11 @@ async def test_connection_failed_flag_set_after_three_failures(hass: HomeAssista
 
 async def test_connection_failed_clears_on_position(hass: HomeAssistant, mock_config_entry):
     """connection_failed clears when a valid position arrives."""
-    from homeassistant.helpers import issue_registry as ir
-    from custom_components.busminder.models import BusPosition
     from datetime import datetime, timezone
+
+    from homeassistant.helpers import issue_registry as ir
+
+    from custom_components.busminder.models import BusPosition
 
     async def empty_stream():
         return
@@ -123,7 +130,9 @@ async def test_connection_failed_clears_on_position(hass: HomeAssistant, mock_co
     coordinator.connection_failed = True
     coordinator._failure_count = 3
     ir.async_create_issue(
-        hass, "busminder", "connection_failed",
+        hass,
+        "busminder",
+        "connection_failed",
         is_fixable=False,
         severity=ir.IssueSeverity.WARNING,
         translation_key="connection_failed",
@@ -131,9 +140,13 @@ async def test_connection_failed_clears_on_position(hass: HomeAssistant, mock_co
     )
 
     pos = BusPosition(
-        trip_id=10001, bus_id=1, bus_reg="1528",
-        lat=-37.820, lng=145.340,
-        last_stop_id=10001, last_stop_time=None,
+        trip_id=10001,
+        bus_id=1,
+        bus_reg="1528",
+        lat=-37.820,
+        lng=145.340,
+        last_stop_id=10001,
+        last_stop_time=None,
         received_at=datetime.now(timezone.utc),
     )
     coordinator._on_position(pos)

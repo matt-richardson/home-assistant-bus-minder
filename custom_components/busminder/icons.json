@@ -6,7 +6,7 @@
       }
     },
     "device_tracker": {
-      "_": {
+      "bus_tracker": {
         "default": "mdi:bus"
       }
     }

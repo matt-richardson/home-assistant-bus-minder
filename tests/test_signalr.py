@@ -1,12 +1,11 @@
-import asyncio
 import json
-import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import patch
+
 import aiohttp
+import pytest
 from aioresponses import aioresponses as aioresponses_ctx
 
 from custom_components.busminder.signalr import SignalRClient
-from custom_components.busminder.models import BusPosition
 
 ROUTE_UUID = "aaaaaaaa-0000-4000-8000-000000000001"
 TOKEN = "abc123token=="
@@ -16,20 +15,28 @@ NEGOTIATE_RESP = {"ConnectionToken": TOKEN, "ProtocolVersion": "2.0"}
 START_RESP = '{ "Response": "started" }'
 REGISTER_RESP = '{"I":"0"}'
 
-GPS_MSG = json.dumps({
-    "M": [{
-        "M": "gps",
-        "A": [json.dumps({
-            "TripId": 10001,
-            "BusId": 11528,
-            "Route": "nuseFuyavZHAJ?H@L?HBJ@J@",
-            "Reg": "1528",
-            "Poll": 0,
-            "LSID": 906802,
-            "LSDT": 1774845511180,
-        })]
-    }]
-})
+GPS_MSG = json.dumps(
+    {
+        "M": [
+            {
+                "M": "gps",
+                "A": [
+                    json.dumps(
+                        {
+                            "TripId": 10001,
+                            "BusId": 11528,
+                            "Route": "nuseFuyavZHAJ?H@L?HBJ@J@",
+                            "Reg": "1528",
+                            "Poll": 0,
+                            "LSID": 906802,
+                            "LSDT": 1774845511180,
+                        }
+                    )
+                ],
+            }
+        ]
+    }
+)
 
 
 @pytest.fixture
@@ -40,6 +47,7 @@ def mock_aiohttp():
 
 async def test_negotiate(mock_aiohttp):
     import urllib.parse
+
     qs = urllib.parse.urlencode({"clientProtocol": "2.0", "connectionData": '[{"name":"broadcasthub"}]'})
     mock_aiohttp.get(
         f"https://live.busminder.com.au/signalr/negotiate?{qs}",
@@ -78,13 +86,16 @@ async def test_parse_non_gps_method_ignored():
 async def test_start(mock_aiohttp):
     """_start() calls /start endpoint with the connection token."""
     import urllib.parse
+
     token = TOKEN
-    qs = urllib.parse.urlencode({
-        "transport": "serverSentEvents",
-        "clientProtocol": "2.0",
-        "connectionToken": token,
-        "connectionData": '[{"name":"broadcasthub"}]',
-    })
+    qs = urllib.parse.urlencode(
+        {
+            "transport": "serverSentEvents",
+            "clientProtocol": "2.0",
+            "connectionToken": token,
+            "connectionData": '[{"name":"broadcasthub"}]',
+        }
+    )
     mock_aiohttp.get(
         f"https://live.busminder.com.au/signalr/start?{qs}",
         payload={"Response": "started"},
@@ -97,13 +108,16 @@ async def test_start(mock_aiohttp):
 async def test_register(mock_aiohttp):
     """_register() POSTs to /send endpoint."""
     import urllib.parse
+
     token = TOKEN
-    qs = urllib.parse.urlencode({
-        "transport": "serverSentEvents",
-        "clientProtocol": "2.0",
-        "connectionToken": token,
-        "connectionData": '[{"name":"broadcasthub"}]',
-    })
+    qs = urllib.parse.urlencode(
+        {
+            "transport": "serverSentEvents",
+            "clientProtocol": "2.0",
+            "connectionToken": token,
+            "connectionData": '[{"name":"broadcasthub"}]',
+        }
+    )
     mock_aiohttp.post(
         f"https://live.busminder.com.au/signalr/send?{qs}",
         payload={"I": "0"},
@@ -142,8 +156,6 @@ async def test_parse_gps_bad_args_returns_empty():
 async def test_stream_yields_positions(mock_aiohttp):
     """stream() negotiates, connects, and yields BusPosition objects."""
     import urllib.parse
-    from aiohttp import ClientSession
-    from aioresponses import CallbackResult
 
     token = TOKEN
 
@@ -155,17 +167,16 @@ async def test_stream_yields_positions(mock_aiohttp):
     )
 
     # Connect — SSE stream: send "initialized" then a GPS message
-    sse_lines = (
-        f"data: initialized\n\n"
-        f"data: {GPS_MSG}\n\n"
-    ).encode()
+    sse_lines = (f"data: initialized\n\n" f"data: {GPS_MSG}\n\n").encode()
 
-    connect_qs = urllib.parse.urlencode({
-        "transport": "serverSentEvents",
-        "clientProtocol": "2.0",
-        "connectionToken": token,
-        "connectionData": '[{"name":"broadcasthub"}]',
-    })
+    connect_qs = urllib.parse.urlencode(
+        {
+            "transport": "serverSentEvents",
+            "clientProtocol": "2.0",
+            "connectionToken": token,
+            "connectionData": '[{"name":"broadcasthub"}]',
+        }
+    )
     mock_aiohttp.get(
         f"https://live.busminder.com.au/signalr/connect?{connect_qs}",
         body=sse_lines,

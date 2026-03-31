@@ -10,6 +10,5 @@
   "codeowners": ["@matt-richardson"],
   "requirements": ["aiohttp>=3.9"],
   "dependencies": [],
-  "iot_class": "cloud_push",
-  "homeassistant": "2024.1.0"
+  "iot_class": "cloud_push"
 }

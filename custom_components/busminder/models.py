@@ -115,9 +115,7 @@ class BusPosition:
         point = decode_polyline_last_point(data.get("Route", ""))
         lat, lng = point if point else (0.0, 0.0)
         lsdt = data.get("LSDT")
-        last_stop_time = (
-            datetime.fromtimestamp(lsdt / 1000, tz=timezone.utc) if lsdt else None
-        )
+        last_stop_time = datetime.fromtimestamp(lsdt / 1000, tz=timezone.utc) if lsdt else None
         return cls(
             trip_id=data["TripId"],
             bus_id=data["BusId"],

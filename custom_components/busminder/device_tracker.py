@@ -47,6 +47,7 @@ class BusTrackerEntity(BusMinderEntity, TrackerEntity):
         self._attr_name = (
             None  # None + has_entity_name=True → entity uses device name (HA convention for "main feature" entities)
         )
+        self._attr_translation_key = "bus_tracker"
         self.entity_id = f"device_tracker.busminder_{route_number.lower()}"
 
     @property

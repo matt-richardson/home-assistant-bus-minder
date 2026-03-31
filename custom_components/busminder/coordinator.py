@@ -11,12 +11,7 @@ from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.issue_registry import IssueSeverity
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
-from .const import (
-    DOMAIN,
-    CONF_OPERATOR_URL,
-    CONF_ROUTE_GROUP_UUID,
-    CONF_ROUTES,
-)
+from .const import CONF_OPERATOR_URL, CONF_ROUTE_GROUP_UUID, CONF_ROUTES, DOMAIN
 from .eta import SpeedTracker
 from .models import BusPosition, Route
 from .signalr import SignalRClient
@@ -63,14 +58,10 @@ class BusMinderCoordinator(DataUpdateCoordinator[dict[int, BusPosition]]):
         effective = {**self._entry.data, **self._entry.options}
         fallback_uuid = effective.get(CONF_ROUTE_GROUP_UUID, "")
         uuids = {
-            r.get("uuid") or fallback_uuid
-            for r in effective.get(CONF_ROUTES, [])
-            if r.get("uuid") or fallback_uuid
+            r.get("uuid") or fallback_uuid for r in effective.get(CONF_ROUTES, []) if r.get("uuid") or fallback_uuid
         }
         for uuid in uuids:
-            task = self.hass.async_create_background_task(
-                self._run_sse(uuid), f"busminder_sse_{uuid}"
-            )
+            task = self.hass.async_create_background_task(self._run_sse(uuid), f"busminder_sse_{uuid}")
             self._sse_tasks.append(task)
 
     async def async_shutdown(self) -> None:

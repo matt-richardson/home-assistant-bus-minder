@@ -1,9 +1,8 @@
-import pytest
-from unittest.mock import patch
 from datetime import datetime, timezone
+from unittest.mock import patch
 
-from homeassistant.core import HomeAssistant
 from homeassistant.components.diagnostics import REDACTED
+from homeassistant.core import HomeAssistant
 
 from custom_components.busminder.diagnostics import async_get_config_entry_diagnostics
 from custom_components.busminder.models import BusPosition
@@ -11,15 +10,20 @@ from custom_components.busminder.models import BusPosition
 
 def make_position(trip_id=10001):
     return BusPosition(
-        trip_id=trip_id, bus_id=1, bus_reg="1528",
-        lat=-37.820, lng=145.340,
-        last_stop_id=10001, last_stop_time=None,
+        trip_id=trip_id,
+        bus_id=1,
+        bus_reg="1528",
+        lat=-37.820,
+        lng=145.340,
+        last_stop_id=10001,
+        last_stop_time=None,
         received_at=datetime.now(timezone.utc),
     )
 
 
 async def test_diagnostics_redacts_operator_url(hass: HomeAssistant, mock_config_entry):
     """operator_url is redacted in diagnostics output."""
+
     async def empty_stream():
         return
         yield
@@ -37,6 +41,7 @@ async def test_diagnostics_redacts_operator_url(hass: HomeAssistant, mock_config
 
 async def test_diagnostics_includes_coordinator_state(hass: HomeAssistant, mock_config_entry):
     """Diagnostics includes coordinator state."""
+
     async def empty_stream():
         return
         yield
@@ -57,6 +62,7 @@ async def test_diagnostics_includes_coordinator_state(hass: HomeAssistant, mock_
 
 async def test_diagnostics_includes_position_data(hass: HomeAssistant, mock_config_entry):
     """Diagnostics includes current bus positions."""
+
     async def empty_stream():
         return
         yield
@@ -82,6 +88,7 @@ async def test_diagnostics_includes_position_data(hass: HomeAssistant, mock_conf
 
 async def test_diagnostics_non_sensitive_fields_present(hass: HomeAssistant, mock_config_entry):
     """Non-sensitive config fields are not redacted."""
+
     async def empty_stream():
         return
         yield

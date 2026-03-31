@@ -8,19 +8,13 @@ from homeassistant.config_entries import ConfigEntry, ConfigFlow, ConfigFlowResu
 from homeassistant.core import callback
 from homeassistant.helpers import selector
 
-from .const import (
-    DOMAIN,
-    CONF_OPERATOR_URL,
-    CONF_ROUTE_GROUP_UUID,
-    CONF_ROUTE_GROUP_NAME,
-    CONF_ROUTES,
-)
+from .const import CONF_OPERATOR_URL, CONF_ROUTE_GROUP_NAME, CONF_ROUTE_GROUP_UUID, CONF_ROUTES, DOMAIN
 from .exceptions import BusMinderConnectionError
 from .models import Route, RouteGroup
 from .scraper import fetch_route_group_from_operator_url
 
 
-class BusMinderConfigFlow(ConfigFlow, domain=DOMAIN):
+class BusMinderConfigFlow(ConfigFlow, domain=DOMAIN):  # type: ignore[call-arg]
     VERSION = 1
 
     @staticmethod
@@ -36,9 +30,7 @@ class BusMinderConfigFlow(ConfigFlow, domain=DOMAIN):
         self._confirmed_routes: list[dict] = []
         self._last_confirmed_stop_id: Optional[int] = None
 
-    async def async_step_user(
-        self, user_input: Optional[dict[str, Any]] = None
-    ) -> ConfigFlowResult:
+    async def async_step_user(self, user_input: Optional[dict[str, Any]] = None) -> ConfigFlowResult:
         errors: dict[str, str] = {}
 
         if user_input is not None:
@@ -66,15 +58,15 @@ class BusMinderConfigFlow(ConfigFlow, domain=DOMAIN):
 
         return self.async_show_form(
             step_id="user",
-            data_schema=vol.Schema({
-                vol.Required(CONF_OPERATOR_URL): str,
-            }),
+            data_schema=vol.Schema(
+                {
+                    vol.Required(CONF_OPERATOR_URL): str,
+                }
+            ),
             errors=errors,
         )
 
-    async def async_step_pick_routes(
-        self, user_input: Optional[dict[str, Any]] = None
-    ) -> ConfigFlowResult:
+    async def async_step_pick_routes(self, user_input: Optional[dict[str, Any]] = None) -> ConfigFlowResult:
         assert self._route_group is not None
         errors: dict[str, str] = {}
 
@@ -99,17 +91,17 @@ class BusMinderConfigFlow(ConfigFlow, domain=DOMAIN):
 
         return self.async_show_form(
             step_id="pick_routes",
-            data_schema=vol.Schema({
-                vol.Required("trip_ids"): selector.SelectSelector(
-                    selector.SelectSelectorConfig(options=route_options, multiple=True)
-                ),
-            }),
+            data_schema=vol.Schema(
+                {
+                    vol.Required("trip_ids"): selector.SelectSelector(
+                        selector.SelectSelectorConfig(options=route_options, multiple=True)
+                    ),
+                }
+            ),
             errors=errors,
         )
 
-    async def async_step_pick_stop(
-        self, user_input: Optional[dict[str, Any]] = None
-    ) -> ConfigFlowResult:
+    async def async_step_pick_stop(self, user_input: Optional[dict[str, Any]] = None) -> ConfigFlowResult:
         assert self._route_group is not None
         assert self._route_queue
 
@@ -126,16 +118,18 @@ class BusMinderConfigFlow(ConfigFlow, domain=DOMAIN):
                     errors={"base": "unknown"},
                 )
 
-            self._confirmed_routes.append({
-                "trip_id": current_route.trip_id,
-                "name": current_route.name,
-                "route_number": current_route.route_number,
-                "uuid": current_route.uuid,
-                "stop_id": stop.id,
-                "stop_name": stop.name,
-                "stop_lat": stop.lat,
-                "stop_lng": stop.lng,
-            })
+            self._confirmed_routes.append(
+                {
+                    "trip_id": current_route.trip_id,
+                    "name": current_route.name,
+                    "route_number": current_route.route_number,
+                    "uuid": current_route.uuid,
+                    "stop_id": stop.id,
+                    "stop_name": stop.name,
+                    "stop_lat": stop.lat,
+                    "stop_lng": stop.lng,
+                }
+            )
             self._last_confirmed_stop_id = stop.id
             self._route_queue.pop(0)
 
@@ -160,23 +154,20 @@ class BusMinderConfigFlow(ConfigFlow, domain=DOMAIN):
 
     def _stop_schema(self, route: Route) -> vol.Schema:
         stop_options = sorted(
-            [
-                selector.SelectOptionDict(value=str(s.id), label=s.name)
-                for s in route.stops
-            ],
+            [selector.SelectOptionDict(value=str(s.id), label=s.name) for s in route.stops],
             key=lambda o: o["label"],
         )
         stop_ids_in_route = {s.id for s in route.stops}
         default = (
-            str(self._last_confirmed_stop_id)
-            if self._last_confirmed_stop_id in stop_ids_in_route
-            else vol.UNDEFINED
+            str(self._last_confirmed_stop_id) if self._last_confirmed_stop_id in stop_ids_in_route else vol.UNDEFINED
         )
-        return vol.Schema({
-            vol.Required("stop_id", default=default): selector.SelectSelector(
-                selector.SelectSelectorConfig(options=stop_options, multiple=False)
-            ),
-        })
+        return vol.Schema(
+            {
+                vol.Required("stop_id", default=default): selector.SelectSelector(
+                    selector.SelectSelectorConfig(options=stop_options, multiple=False)
+                ),
+            }
+        )
 
 
 class BusMinderOptionsFlow(OptionsFlow):
@@ -187,25 +178,17 @@ class BusMinderOptionsFlow(OptionsFlow):
         current = {**entry.data, **entry.options}
         self._operator_url: str = current.get(CONF_OPERATOR_URL, "")
         self._route_group: Optional[RouteGroup] = None
-        self._selected_trip_ids: list[int] = [
-            r["trip_id"] for r in current.get(CONF_ROUTES, [])
-        ]
+        self._selected_trip_ids: list[int] = [r["trip_id"] for r in current.get(CONF_ROUTES, [])]
         self._route_queue: list[Route] = []
         self._confirmed_routes: list[dict] = []
         # Pre-populate from first route's current stop so it defaults correctly on re-open
         first_route = next(iter(current.get(CONF_ROUTES, [])), None)
-        self._last_confirmed_stop_id: Optional[int] = (
-            first_route.get("stop_id") if first_route else None
-        )
+        self._last_confirmed_stop_id: Optional[int] = first_route.get("stop_id") if first_route else None
 
-    async def async_step_init(
-        self, user_input: Optional[dict[str, Any]] = None
-    ) -> ConfigFlowResult:
+    async def async_step_init(self, user_input: Optional[dict[str, Any]] = None) -> ConfigFlowResult:
         return await self.async_step_user()
 
-    async def async_step_user(
-        self, user_input: Optional[dict[str, Any]] = None
-    ) -> ConfigFlowResult:
+    async def async_step_user(self, user_input: Optional[dict[str, Any]] = None) -> ConfigFlowResult:
         errors: dict[str, str] = {}
 
         if user_input is not None:
@@ -230,15 +213,15 @@ class BusMinderOptionsFlow(OptionsFlow):
 
         return self.async_show_form(
             step_id="user",
-            data_schema=vol.Schema({
-                vol.Required(CONF_OPERATOR_URL, default=self._operator_url): str,
-            }),
+            data_schema=vol.Schema(
+                {
+                    vol.Required(CONF_OPERATOR_URL, default=self._operator_url): str,
+                }
+            ),
             errors=errors,
         )
 
-    async def async_step_pick_routes(
-        self, user_input: Optional[dict[str, Any]] = None
-    ) -> ConfigFlowResult:
+    async def async_step_pick_routes(self, user_input: Optional[dict[str, Any]] = None) -> ConfigFlowResult:
         assert self._route_group is not None
         errors: dict[str, str] = {}
 
@@ -264,17 +247,17 @@ class BusMinderOptionsFlow(OptionsFlow):
 
         return self.async_show_form(
             step_id="pick_routes",
-            data_schema=vol.Schema({
-                vol.Required("trip_ids", default=current_selection): selector.SelectSelector(
-                    selector.SelectSelectorConfig(options=route_options, multiple=True)
-                ),
-            }),
+            data_schema=vol.Schema(
+                {
+                    vol.Required("trip_ids", default=current_selection): selector.SelectSelector(
+                        selector.SelectSelectorConfig(options=route_options, multiple=True)
+                    ),
+                }
+            ),
             errors=errors,
         )
 
-    async def async_step_pick_stop(
-        self, user_input: Optional[dict[str, Any]] = None
-    ) -> ConfigFlowResult:
+    async def async_step_pick_stop(self, user_input: Optional[dict[str, Any]] = None) -> ConfigFlowResult:
         assert self._route_group is not None
         assert self._route_queue
 
@@ -291,16 +274,18 @@ class BusMinderOptionsFlow(OptionsFlow):
                     errors={"base": "unknown"},
                 )
 
-            self._confirmed_routes.append({
-                "trip_id": current_route.trip_id,
-                "name": current_route.name,
-                "route_number": current_route.route_number,
-                "uuid": current_route.uuid,
-                "stop_id": stop.id,
-                "stop_name": stop.name,
-                "stop_lat": stop.lat,
-                "stop_lng": stop.lng,
-            })
+            self._confirmed_routes.append(
+                {
+                    "trip_id": current_route.trip_id,
+                    "name": current_route.name,
+                    "route_number": current_route.route_number,
+                    "uuid": current_route.uuid,
+                    "stop_id": stop.id,
+                    "stop_name": stop.name,
+                    "stop_lat": stop.lat,
+                    "stop_lng": stop.lng,
+                }
+            )
             self._last_confirmed_stop_id = stop.id
             self._route_queue.pop(0)
 
@@ -325,20 +310,17 @@ class BusMinderOptionsFlow(OptionsFlow):
 
     def _stop_schema(self, route: Route) -> vol.Schema:
         stop_options = sorted(
-            [
-                selector.SelectOptionDict(value=str(s.id), label=s.name)
-                for s in route.stops
-            ],
+            [selector.SelectOptionDict(value=str(s.id), label=s.name) for s in route.stops],
             key=lambda o: o["label"],
         )
         stop_ids_in_route = {s.id for s in route.stops}
         default = (
-            str(self._last_confirmed_stop_id)
-            if self._last_confirmed_stop_id in stop_ids_in_route
-            else vol.UNDEFINED
+            str(self._last_confirmed_stop_id) if self._last_confirmed_stop_id in stop_ids_in_route else vol.UNDEFINED
         )
-        return vol.Schema({
-            vol.Required("stop_id", default=default): selector.SelectSelector(
-                selector.SelectSelectorConfig(options=stop_options, multiple=False)
-            ),
-        })
+        return vol.Schema(
+            {
+                vol.Required("stop_id", default=default): selector.SelectSelector(
+                    selector.SelectSelectorConfig(options=stop_options, multiple=False)
+                ),
+            }
+        )

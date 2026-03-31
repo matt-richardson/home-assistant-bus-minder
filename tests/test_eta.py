@@ -1,11 +1,9 @@
-import pytest
 from datetime import timedelta
-from custom_components.busminder.models import BusPosition, Stop, Route
-from custom_components.busminder.eta import (
-    haversine_km,
-    estimate_eta,
-    SpeedTracker,
-)
+
+import pytest
+
+from custom_components.busminder.eta import SpeedTracker, estimate_eta, haversine_km
+from custom_components.busminder.models import BusPosition, Route, Stop
 
 
 def make_stop(id, lat, lng, seq):
@@ -14,17 +12,21 @@ def make_stop(id, lat, lng, seq):
 
 def make_bus(trip_id, lat, lng, last_stop_id):
     from datetime import datetime, timezone
+
     return BusPosition(
-        trip_id=trip_id, bus_id=1, bus_reg="1528",
-        lat=lat, lng=lng,
-        last_stop_id=last_stop_id, last_stop_time=None,
+        trip_id=trip_id,
+        bus_id=1,
+        bus_reg="1528",
+        lat=lat,
+        lng=lng,
+        last_stop_id=last_stop_id,
+        last_stop_time=None,
         received_at=datetime.now(timezone.utc),
     )
 
 
 def make_route(trip_id, stops):
-    return Route(trip_id=trip_id, name="Test Route", route_number="1001",
-                 colour="#000", stops=stops)
+    return Route(trip_id=trip_id, name="Test Route", route_number="1001", colour="#000", stops=stops)
 
 
 def test_haversine_known_distance():
@@ -39,8 +41,8 @@ def test_haversine_same_point():
 
 def test_estimate_eta_approaching():
     stops = [
-        make_stop(1, -37.780, 145.340, 1),   # first stop (bus passed this)
-        make_stop(2, -37.785, 145.340, 2),   # monitored stop
+        make_stop(1, -37.780, 145.340, 1),  # first stop (bus passed this)
+        make_stop(2, -37.785, 145.340, 2),  # monitored stop
     ]
     route = make_route(10001, stops)
     bus = make_bus(10001, -37.782, 145.340, last_stop_id=1)
@@ -85,13 +87,15 @@ def test_estimate_eta_unknown_last_stop():
 
 def test_speed_tracker_returns_none_with_one_point():
     from datetime import datetime, timezone
+
     tracker = SpeedTracker()
     tracker.update(10001, -37.780, 145.340, datetime.now(timezone.utc))
     assert tracker.get_speed(10001) is None
 
 
 def test_speed_tracker_computes_speed():
-    from datetime import datetime, timezone, timedelta
+    from datetime import datetime, timedelta, timezone
+
     tracker = SpeedTracker()
     t0 = datetime(2026, 3, 30, 15, 0, 0, tzinfo=timezone.utc)
     t1 = t0 + timedelta(seconds=60)
@@ -131,7 +135,8 @@ def test_estimate_eta_last_stop_id_none():
 
 def test_speed_tracker_returns_none_when_all_samples_too_close_in_time():
     """Returns None when all consecutive samples are < 1 second apart."""
-    from datetime import datetime, timezone, timedelta
+    from datetime import datetime, timedelta, timezone
+
     tracker = SpeedTracker()
     t0 = datetime(2026, 3, 30, 15, 0, 0, tzinfo=timezone.utc)
     # Add two samples less than 1 second apart

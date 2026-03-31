@@ -1,10 +1,11 @@
-import pytest
 from pathlib import Path
-from aioresponses import aioresponses as aioresponses_ctx
-import aiohttp
 
-from custom_components.busminder.scraper import fetch_route_group_from_operator_url
+import aiohttp
+import pytest
+from aioresponses import aioresponses as aioresponses_ctx
+
 from custom_components.busminder.exceptions import BusMinderConnectionError
+from custom_components.busminder.scraper import fetch_route_group_from_operator_url
 
 OPERATOR_HTML = (Path(__file__).parent / "fixtures" / "operator_page.html").read_text()
 ROUTE_GROUP_HTML = (Path(__file__).parent / "fixtures" / "route_group.html").read_text()
@@ -101,7 +102,6 @@ async def test_fetch_route_group_no_routemap_data(mock_aiohttp):
 
 async def test_fetch_route_group_invalid_json(mock_aiohttp):
     """Raises BusMinderConnectionError when routemap JSON is invalid."""
-    invalid_html = OPERATOR_HTML  # has iframe pointing to UUID
     # Build a page that has the routemap script but with invalid JSON
     bad_json_html = (
         "<html><body><title>Test</title>"

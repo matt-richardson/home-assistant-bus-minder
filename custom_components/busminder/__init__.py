@@ -32,9 +32,7 @@ async def async_reload_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
     await hass.config_entries.async_reload(entry.entry_id)
 
 
-async def async_remove_config_entry_device(
-    hass: HomeAssistant, entry: ConfigEntry, device: dr.DeviceEntry
-) -> bool:
+async def async_remove_config_entry_device(hass: HomeAssistant, entry: ConfigEntry, device: dr.DeviceEntry) -> bool:
     """Allow removing a route device from the UI; strip it from config so it won't return."""
     # Device identifier format: (DOMAIN, "{entry_id}_{trip_id}")
     trip_id: int | None = None
@@ -52,7 +50,11 @@ async def async_remove_config_entry_device(
     # The coordinator and options flow both use {**entry.data, **entry.options},
     # so a stale CONF_ROUTES in options would override a cleaned-up entry.data.
     new_data = {**entry.data, CONF_ROUTES: [r for r in entry.data.get(CONF_ROUTES, []) if r["trip_id"] != trip_id]}
-    new_options = {**entry.options, CONF_ROUTES: [r for r in entry.options.get(CONF_ROUTES, []) if r["trip_id"] != trip_id]} if CONF_ROUTES in entry.options else entry.options
+    new_options = (
+        {**entry.options, CONF_ROUTES: [r for r in entry.options.get(CONF_ROUTES, []) if r["trip_id"] != trip_id]}
+        if CONF_ROUTES in entry.options
+        else entry.options
+    )
     hass.config_entries.async_update_entry(entry, data=new_data, options=new_options)
 
     return True

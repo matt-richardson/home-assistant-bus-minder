@@ -1,13 +1,13 @@
-from pathlib import Path
+from unittest.mock import patch
+
 import pytest
-from unittest.mock import AsyncMock, patch
 from homeassistant import config_entries
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType
 
-from custom_components.busminder.const import DOMAIN, CONF_OPERATOR_URL, CONF_ROUTES
-from custom_components.busminder.models import Stop, Route, RouteGroup
+from custom_components.busminder.const import CONF_OPERATOR_URL, CONF_ROUTES, DOMAIN
 from custom_components.busminder.exceptions import BusMinderConnectionError
+from custom_components.busminder.models import Route, RouteGroup, Stop
 
 OPERATOR_URL = "https://example-buslines.com.au/live-tracking/springfield-high/"
 
@@ -49,17 +49,13 @@ def mock_scraper():
 
 
 async def test_step_user_shows_url_form(hass: HomeAssistant):
-    result = await hass.config_entries.flow.async_init(
-        DOMAIN, context={"source": config_entries.SOURCE_USER}
-    )
+    result = await hass.config_entries.flow.async_init(DOMAIN, context={"source": config_entries.SOURCE_USER})
     assert result["type"] == FlowResultType.FORM
     assert result["step_id"] == "user"
 
 
 async def test_step_user_success_proceeds_to_pick_routes(hass: HomeAssistant, mock_scraper):
-    result = await hass.config_entries.flow.async_init(
-        DOMAIN, context={"source": config_entries.SOURCE_USER}
-    )
+    result = await hass.config_entries.flow.async_init(DOMAIN, context={"source": config_entries.SOURCE_USER})
     result = await hass.config_entries.flow.async_configure(
         result["flow_id"], user_input={"operator_url": OPERATOR_URL}
     )
@@ -74,9 +70,7 @@ async def test_step_user_cannot_connect(hass: HomeAssistant):
         "custom_components.busminder.config_flow.fetch_route_group_from_operator_url",
         side_effect=BusMinderConnectionError("Cannot connect"),
     ):
-        result = await hass.config_entries.flow.async_init(
-            DOMAIN, context={"source": config_entries.SOURCE_USER}
-        )
+        result = await hass.config_entries.flow.async_init(DOMAIN, context={"source": config_entries.SOURCE_USER})
         result = await hass.config_entries.flow.async_configure(
             result["flow_id"], user_input={"operator_url": OPERATOR_URL}
         )
@@ -85,9 +79,7 @@ async def test_step_user_cannot_connect(hass: HomeAssistant):
 
 
 async def test_step_pick_routes_proceeds_to_pick_stop(hass: HomeAssistant, mock_scraper):
-    result = await hass.config_entries.flow.async_init(
-        DOMAIN, context={"source": config_entries.SOURCE_USER}
-    )
+    result = await hass.config_entries.flow.async_init(DOMAIN, context={"source": config_entries.SOURCE_USER})
     result = await hass.config_entries.flow.async_configure(
         result["flow_id"], user_input={"operator_url": OPERATOR_URL}
     )
@@ -100,9 +92,7 @@ async def test_step_pick_routes_proceeds_to_pick_stop(hass: HomeAssistant, mock_
 
 async def test_full_flow_creates_entry(hass: HomeAssistant, mock_scraper):
     """Full flow creates a config entry with per-route stop data."""
-    result = await hass.config_entries.flow.async_init(
-        DOMAIN, context={"source": config_entries.SOURCE_USER}
-    )
+    result = await hass.config_entries.flow.async_init(DOMAIN, context={"source": config_entries.SOURCE_USER})
     result = await hass.config_entries.flow.async_configure(
         result["flow_id"], user_input={"operator_url": OPERATOR_URL}
     )
@@ -112,47 +102,35 @@ async def test_full_flow_creates_entry(hass: HomeAssistant, mock_scraper):
     )
     # pick_stop for route 1001 (sorted first by route_number "1001")
     assert result["step_id"] == "pick_stop"
-    result = await hass.config_entries.flow.async_configure(
-        result["flow_id"], user_input={"stop_id": "10001"}
-    )
+    result = await hass.config_entries.flow.async_configure(result["flow_id"], user_input={"stop_id": "10001"})
     # pick_stop for route 1002 (sorted second)
     assert result["step_id"] == "pick_stop"
-    result = await hass.config_entries.flow.async_configure(
-        result["flow_id"], user_input={"stop_id": "10003"}
-    )
+    result = await hass.config_entries.flow.async_configure(result["flow_id"], user_input={"stop_id": "10003"})
     assert result["type"] == FlowResultType.CREATE_ENTRY
     assert result["data"]["route_group_uuid"] == "aaaaaaaa-0000-4000-8000-000000000001"
     routes = result["data"]["routes"]
     assert len(routes) == 2
     stop_by_trip = {r["trip_id"]: r["stop_id"] for r in routes}
-    assert stop_by_trip[10001] == 10001   # Main Gate
-    assert stop_by_trip[10002] == 10003   # City Station
+    assert stop_by_trip[10001] == 10001  # Main Gate
+    assert stop_by_trip[10002] == 10003  # City Station
 
 
 async def test_full_flow_single_route_one_stop_step(hass: HomeAssistant, mock_scraper):
     """Selecting one route produces exactly one pick_stop step then CREATE_ENTRY."""
-    result = await hass.config_entries.flow.async_init(
-        DOMAIN, context={"source": config_entries.SOURCE_USER}
-    )
+    result = await hass.config_entries.flow.async_init(DOMAIN, context={"source": config_entries.SOURCE_USER})
     result = await hass.config_entries.flow.async_configure(
         result["flow_id"], user_input={"operator_url": OPERATOR_URL}
     )
-    result = await hass.config_entries.flow.async_configure(
-        result["flow_id"], user_input={"trip_ids": ["10001"]}
-    )
+    result = await hass.config_entries.flow.async_configure(result["flow_id"], user_input={"trip_ids": ["10001"]})
     assert result["step_id"] == "pick_stop"
-    result = await hass.config_entries.flow.async_configure(
-        result["flow_id"], user_input={"stop_id": "10001"}
-    )
+    result = await hass.config_entries.flow.async_configure(result["flow_id"], user_input={"stop_id": "10001"})
     assert result["type"] == FlowResultType.CREATE_ENTRY
     assert result["data"]["routes"][0]["stop_id"] == 10001
 
 
 async def test_full_flow_second_route_defaults_to_first_stop(hass: HomeAssistant, mock_scraper):
     """After picking stop 10001 for route 1001, the route 1002 picker defaults to 10001 (shared stop)."""
-    result = await hass.config_entries.flow.async_init(
-        DOMAIN, context={"source": config_entries.SOURCE_USER}
-    )
+    result = await hass.config_entries.flow.async_init(DOMAIN, context={"source": config_entries.SOURCE_USER})
     result = await hass.config_entries.flow.async_configure(
         result["flow_id"], user_input={"operator_url": OPERATOR_URL}
     )
@@ -160,9 +138,7 @@ async def test_full_flow_second_route_defaults_to_first_stop(hass: HomeAssistant
         result["flow_id"], user_input={"trip_ids": ["10001", "10002"]}
     )
     # Pick Main Gate (10001) for route 1001
-    result = await hass.config_entries.flow.async_configure(
-        result["flow_id"], user_input={"stop_id": "10001"}
-    )
+    result = await hass.config_entries.flow.async_configure(result["flow_id"], user_input={"stop_id": "10001"})
     assert result["step_id"] == "pick_stop"
     # The schema for route 1002 should default to "10001" (stop 10001 exists in route 1002)
     schema = result["data_schema"].schema
@@ -173,6 +149,7 @@ async def test_full_flow_second_route_defaults_to_first_stop(hass: HomeAssistant
 
 async def test_options_flow_shows_url_form(hass: HomeAssistant, mock_config_entry):
     """Options flow opens with the URL form."""
+
     async def empty_stream():
         return
         yield
@@ -183,15 +160,14 @@ async def test_options_flow_shows_url_form(hass: HomeAssistant, mock_config_entr
         await hass.config_entries.async_setup(mock_config_entry.entry_id)
         await hass.async_block_till_done()
 
-    result = await hass.config_entries.options.async_init(
-        mock_config_entry.entry_id
-    )
+    result = await hass.config_entries.options.async_init(mock_config_entry.entry_id)
     assert result["type"] == FlowResultType.FORM
     assert result["step_id"] == "user"
 
 
 async def test_options_flow_full_reconfiguration(hass: HomeAssistant, mock_config_entry, mock_scraper):
     """Options flow full 3-step sequence saves new config to entry.options."""
+
     async def empty_stream():
         return
         yield
@@ -204,24 +180,16 @@ async def test_options_flow_full_reconfiguration(hass: HomeAssistant, mock_confi
         await hass.config_entries.async_setup(mock_config_entry.entry_id)
         await hass.async_block_till_done()
 
-    result = await hass.config_entries.options.async_init(
-        mock_config_entry.entry_id
-    )
-    result = await hass.config_entries.options.async_configure(
-        result["flow_id"], user_input={"operator_url": NEW_URL}
-    )
+    result = await hass.config_entries.options.async_init(mock_config_entry.entry_id)
+    result = await hass.config_entries.options.async_configure(result["flow_id"], user_input={"operator_url": NEW_URL})
     assert result["step_id"] == "pick_routes"
 
-    result = await hass.config_entries.options.async_configure(
-        result["flow_id"], user_input={"trip_ids": ["10001"]}
-    )
+    result = await hass.config_entries.options.async_configure(result["flow_id"], user_input={"trip_ids": ["10001"]})
     assert result["step_id"] == "pick_stop"
 
     with patch("custom_components.busminder.coordinator.SignalRClient") as MockClient2:
         MockClient2.return_value.stream = empty_stream
-        result = await hass.config_entries.options.async_configure(
-            result["flow_id"], user_input={"stop_id": "10001"}
-        )
+        result = await hass.config_entries.options.async_configure(result["flow_id"], user_input={"stop_id": "10001"})
         await hass.async_block_till_done()
 
     assert result["type"] == FlowResultType.CREATE_ENTRY
@@ -233,6 +201,7 @@ async def test_options_flow_full_reconfiguration(hass: HomeAssistant, mock_confi
 
 async def test_options_flow_cannot_connect(hass: HomeAssistant, mock_config_entry):
     """Options flow shows cannot_connect error on bad URL."""
+
     async def empty_stream():
         return
         yield
@@ -243,9 +212,7 @@ async def test_options_flow_cannot_connect(hass: HomeAssistant, mock_config_entr
         await hass.config_entries.async_setup(mock_config_entry.entry_id)
         await hass.async_block_till_done()
 
-    result = await hass.config_entries.options.async_init(
-        mock_config_entry.entry_id
-    )
+    result = await hass.config_entries.options.async_init(mock_config_entry.entry_id)
 
     with patch(
         "custom_components.busminder.config_flow.fetch_route_group_from_operator_url",
@@ -266,9 +233,7 @@ async def test_step_user_no_busminder_error(hass: HomeAssistant):
         "custom_components.busminder.config_flow.fetch_route_group_from_operator_url",
         side_effect=BusMinderConnectionError("No BusMinder iframe found"),
     ):
-        result = await hass.config_entries.flow.async_init(
-            DOMAIN, context={"source": config_entries.SOURCE_USER}
-        )
+        result = await hass.config_entries.flow.async_init(DOMAIN, context={"source": config_entries.SOURCE_USER})
         result = await hass.config_entries.flow.async_configure(
             result["flow_id"], user_input={"operator_url": OPERATOR_URL}
         )
@@ -282,9 +247,7 @@ async def test_step_user_unknown_error(hass: HomeAssistant):
         "custom_components.busminder.config_flow.fetch_route_group_from_operator_url",
         side_effect=RuntimeError("unexpected"),
     ):
-        result = await hass.config_entries.flow.async_init(
-            DOMAIN, context={"source": config_entries.SOURCE_USER}
-        )
+        result = await hass.config_entries.flow.async_init(DOMAIN, context={"source": config_entries.SOURCE_USER})
         result = await hass.config_entries.flow.async_configure(
             result["flow_id"], user_input={"operator_url": OPERATOR_URL}
         )
@@ -294,16 +257,12 @@ async def test_step_user_unknown_error(hass: HomeAssistant):
 
 async def test_step_pick_routes_empty_selection_shows_error(hass: HomeAssistant, mock_scraper):
     """Submitting no routes in pick_routes step shows unknown error."""
-    result = await hass.config_entries.flow.async_init(
-        DOMAIN, context={"source": config_entries.SOURCE_USER}
-    )
+    result = await hass.config_entries.flow.async_init(DOMAIN, context={"source": config_entries.SOURCE_USER})
     result = await hass.config_entries.flow.async_configure(
         result["flow_id"], user_input={"operator_url": OPERATOR_URL}
     )
     assert result["step_id"] == "pick_routes"
-    result = await hass.config_entries.flow.async_configure(
-        result["flow_id"], user_input={"trip_ids": []}
-    )
+    result = await hass.config_entries.flow.async_configure(result["flow_id"], user_input={"trip_ids": []})
     assert result["type"] == FlowResultType.FORM
     assert result["step_id"] == "pick_routes"
     assert result["errors"] == {"base": "unknown"}
@@ -311,18 +270,11 @@ async def test_step_pick_routes_empty_selection_shows_error(hass: HomeAssistant,
 
 async def test_step_pick_stop_unknown_stop_id(hass: HomeAssistant, mock_scraper):
     """Submitting an invalid stop_id in pick_stop step shows unknown error."""
-    from custom_components.busminder.config_flow import BusMinderConfigFlow
-    from custom_components.busminder.models import Stop
-
-    result = await hass.config_entries.flow.async_init(
-        DOMAIN, context={"source": config_entries.SOURCE_USER}
-    )
+    result = await hass.config_entries.flow.async_init(DOMAIN, context={"source": config_entries.SOURCE_USER})
     result = await hass.config_entries.flow.async_configure(
         result["flow_id"], user_input={"operator_url": OPERATOR_URL}
     )
-    result = await hass.config_entries.flow.async_configure(
-        result["flow_id"], user_input={"trip_ids": ["10001"]}
-    )
+    result = await hass.config_entries.flow.async_configure(result["flow_id"], user_input={"trip_ids": ["10001"]})
     assert result["step_id"] == "pick_stop"
     # Bypass schema validation and call async_step_pick_stop directly with an invalid stop_id
     flow_id = result["flow_id"]
@@ -335,6 +287,7 @@ async def test_step_pick_stop_unknown_stop_id(hass: HomeAssistant, mock_scraper)
 
 async def test_options_flow_unknown_error(hass: HomeAssistant, mock_config_entry):
     """Options flow handles unexpected errors with the 'unknown' error key."""
+
     async def empty_stream():
         return
         yield
@@ -345,9 +298,7 @@ async def test_options_flow_unknown_error(hass: HomeAssistant, mock_config_entry
         await hass.config_entries.async_setup(mock_config_entry.entry_id)
         await hass.async_block_till_done()
 
-    result = await hass.config_entries.options.async_init(
-        mock_config_entry.entry_id
-    )
+    result = await hass.config_entries.options.async_init(mock_config_entry.entry_id)
 
     with patch(
         "custom_components.busminder.config_flow.fetch_route_group_from_operator_url",
@@ -364,6 +315,7 @@ async def test_options_flow_unknown_error(hass: HomeAssistant, mock_config_entry
 
 async def test_options_flow_no_busminder(hass: HomeAssistant, mock_config_entry):
     """Options flow shows no_busminder error when no iframe found."""
+
     async def empty_stream():
         return
         yield
@@ -374,9 +326,7 @@ async def test_options_flow_no_busminder(hass: HomeAssistant, mock_config_entry)
         await hass.config_entries.async_setup(mock_config_entry.entry_id)
         await hass.async_block_till_done()
 
-    result = await hass.config_entries.options.async_init(
-        mock_config_entry.entry_id
-    )
+    result = await hass.config_entries.options.async_init(mock_config_entry.entry_id)
 
     with patch(
         "custom_components.busminder.config_flow.fetch_route_group_from_operator_url",
@@ -393,6 +343,7 @@ async def test_options_flow_no_busminder(hass: HomeAssistant, mock_config_entry)
 
 async def test_options_flow_empty_routes_shows_error(hass: HomeAssistant, mock_config_entry, mock_scraper):
     """Options flow shows unknown error when no routes are selected."""
+
     async def empty_stream():
         return
         yield
@@ -403,9 +354,7 @@ async def test_options_flow_empty_routes_shows_error(hass: HomeAssistant, mock_c
         await hass.config_entries.async_setup(mock_config_entry.entry_id)
         await hass.async_block_till_done()
 
-    result = await hass.config_entries.options.async_init(
-        mock_config_entry.entry_id
-    )
+    result = await hass.config_entries.options.async_init(mock_config_entry.entry_id)
     result = await hass.config_entries.options.async_configure(
         result["flow_id"],
         user_input={"operator_url": "https://example.com/"},
@@ -423,6 +372,7 @@ async def test_options_flow_empty_routes_shows_error(hass: HomeAssistant, mock_c
 
 async def test_options_flow_unknown_stop_id(hass: HomeAssistant, mock_config_entry, mock_scraper):
     """Options flow shows unknown error when an invalid stop_id is submitted."""
+
     async def empty_stream():
         return
         yield
@@ -433,9 +383,7 @@ async def test_options_flow_unknown_stop_id(hass: HomeAssistant, mock_config_ent
         await hass.config_entries.async_setup(mock_config_entry.entry_id)
         await hass.async_block_till_done()
 
-    result = await hass.config_entries.options.async_init(
-        mock_config_entry.entry_id
-    )
+    result = await hass.config_entries.options.async_init(mock_config_entry.entry_id)
     result = await hass.config_entries.options.async_configure(
         result["flow_id"],
         user_input={"operator_url": "https://example.com/"},

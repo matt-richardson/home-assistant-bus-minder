@@ -5,11 +5,10 @@ import json
 import logging
 import urllib.parse
 from collections.abc import AsyncIterator
-from typing import Callable, Optional
 
 import aiohttp
 
-from .const import LIVE_BASE_URL, SIGNALR_HEADERS, CONNECTION_DATA_ENC
+from .const import LIVE_BASE_URL, SIGNALR_HEADERS
 from .models import BusPosition
 
 _LOGGER = logging.getLogger(__name__)

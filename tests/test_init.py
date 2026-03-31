@@ -1,4 +1,3 @@
-import pytest
 from unittest.mock import patch
 
 from homeassistant.core import HomeAssistant
@@ -9,6 +8,7 @@ from custom_components.busminder.const import CONF_ROUTES, DOMAIN
 
 async def test_async_reload_entry(hass: HomeAssistant, mock_config_entry):
     """async_reload_entry unloads then reloads the config entry."""
+
     async def empty_stream():
         return
         yield
@@ -35,11 +35,13 @@ async def test_async_reload_entry(hass: HomeAssistant, mock_config_entry):
 async def test_parallel_updates_is_set(hass: HomeAssistant):
     """PARALLEL_UPDATES constant is defined."""
     from custom_components.busminder import PARALLEL_UPDATES
+
     assert PARALLEL_UPDATES == 1
 
 
 async def test_update_listener_triggers_reload(hass: HomeAssistant, mock_config_entry):
     """Updating entry options triggers an entry reload."""
+
     async def empty_stream():
         return
         yield
@@ -64,6 +66,7 @@ async def test_update_listener_triggers_reload(hass: HomeAssistant, mock_config_
 
 async def test_remove_config_entry_device(hass: HomeAssistant, mock_config_entry):
     """Removing a device strips its route from config and returns True."""
+
     async def empty_stream():
         return
         yield
@@ -76,12 +79,11 @@ async def test_remove_config_entry_device(hass: HomeAssistant, mock_config_entry
 
     # Find the device for trip_id 10001
     dev_reg = dr.async_get(hass)
-    device = dev_reg.async_get_device(
-        identifiers={(DOMAIN, f"{mock_config_entry.entry_id}_10001")}
-    )
+    device = dev_reg.async_get_device(identifiers={(DOMAIN, f"{mock_config_entry.entry_id}_10001")})
     assert device is not None
 
     from custom_components.busminder import async_remove_config_entry_device
+
     result = await async_remove_config_entry_device(hass, mock_config_entry, device)
 
     assert result is True
@@ -92,6 +94,7 @@ async def test_remove_config_entry_device(hass: HomeAssistant, mock_config_entry
 
 async def test_remove_config_entry_device_also_clears_options(hass: HomeAssistant, mock_config_entry):
     """Removing a device clears the route from entry.options too, so it won't reappear in the options flow."""
+
     async def empty_stream():
         return
         yield
@@ -105,20 +108,21 @@ async def test_remove_config_entry_device_also_clears_options(hass: HomeAssistan
     # Simulate a previous options flow run that stored routes in entry.options
     hass.config_entries.async_update_entry(
         mock_config_entry,
-        options={CONF_ROUTES: [
-            {"trip_id": 10001, "name": "Route 1001", "route_number": "1001"},
-            {"trip_id": 10002, "name": "Route 1002", "route_number": "1002"},
-        ]},
+        options={
+            CONF_ROUTES: [
+                {"trip_id": 10001, "name": "Route 1001", "route_number": "1001"},
+                {"trip_id": 10002, "name": "Route 1002", "route_number": "1002"},
+            ]
+        },
     )
     await hass.async_block_till_done()
 
     dev_reg = dr.async_get(hass)
-    device = dev_reg.async_get_device(
-        identifiers={(DOMAIN, f"{mock_config_entry.entry_id}_10001")}
-    )
+    device = dev_reg.async_get_device(identifiers={(DOMAIN, f"{mock_config_entry.entry_id}_10001")})
     assert device is not None
 
     from custom_components.busminder import async_remove_config_entry_device
+
     await async_remove_config_entry_device(hass, mock_config_entry, device)
 
     # Route must be gone from both data and options

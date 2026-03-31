@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import math
 from collections import deque
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 from typing import Optional
 
 from .models import BusPosition, Route, Stop

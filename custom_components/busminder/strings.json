@@ -3,7 +3,7 @@
     "step": {
       "user": {
         "title": "Connect to BusMinder",
-        "description": "Enter the URL of your school or operator's live tracking page. For example: `https://your-operator.com.au/live-tracking/your-school/`",
+        "description": "Enter the URL of your school or operator's live tracking page.",
         "data": {
           "operator_url": "Tracking page URL"
         }
