@@ -1,0 +1,14 @@
+{
+  "entity": {
+    "sensor": {
+      "eta": {
+        "default": "mdi:bus-clock"
+      }
+    },
+    "device_tracker": {
+      "_": {
+        "default": "mdi:bus"
+      }
+    }
+  }
+}
