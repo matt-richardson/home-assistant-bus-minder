@@ -14,6 +14,8 @@ from .models import BusPosition
 
 _LOGGER = logging.getLogger(__name__)
 
+PARALLEL_UPDATES = 0
+
 
 async def async_setup_entry(
     hass: HomeAssistant,
@@ -50,7 +52,9 @@ class BusTrackerEntity(BusMinderEntity, TrackerEntity):
 
     @property
     def available(self) -> bool:
-        return not self.coordinator.connection_failed
+        if self.coordinator.connection_failed:
+            return False
+        return self.coordinator.last_update_success
 
     @property
     def latitude(self) -> Optional[float]:

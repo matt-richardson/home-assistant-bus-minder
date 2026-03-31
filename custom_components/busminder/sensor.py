@@ -28,6 +28,8 @@ from .models import BusPosition, Route, Stop
 
 _LOGGER = logging.getLogger(__name__)
 
+PARALLEL_UPDATES = 0
+
 NOT_RUNNING_THRESHOLD_S = 300  # 5 minutes without update → "not_running"
 
 
@@ -78,7 +80,6 @@ class BusEtaSensor(BusMinderEntity, SensorEntity):
         self._route = route
         self._monitored_stop = monitored_stop
         self._attr_unique_id = f"{entry.entry_id}_{route.trip_id}_eta"
-        self._attr_name = "ETA"
         self.entity_id = f"sensor.busminder_{route.route_number.lower()}_eta"
 
     @property

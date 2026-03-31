@@ -112,6 +112,7 @@ class BusMinderCoordinator(DataUpdateCoordinator[dict[int, BusPosition]]):
                 )
                 if self._failure_count >= RECONNECT_THRESHOLD and not self.connection_failed:
                     self.connection_failed = True
+                    self.async_update_listeners()
                     ir.async_create_issue(
                         self.hass,
                         DOMAIN,
@@ -132,6 +133,7 @@ class BusMinderCoordinator(DataUpdateCoordinator[dict[int, BusPosition]]):
         if self.connection_failed:
             self.connection_failed = False
             self._failure_count = 0
+            self.async_update_listeners()
             ir.async_delete_issue(self.hass, DOMAIN, "connection_failed")
 
         self._speed_tracker.update(pos.trip_id, pos.lat, pos.lng, pos.received_at)
