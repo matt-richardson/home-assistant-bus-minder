@@ -17,7 +17,7 @@
       },
       "pick_stop": {
         "title": "Select your stop",
-        "description": "Choose the stop where you want arrival estimates.",
+        "description": "Choose the stop for **{route_name}** where you want arrival estimates.",
         "data": {
           "stop_id": "Stop"
         }
@@ -51,7 +51,7 @@
       },
       "pick_stop": {
         "title": "Select your stop",
-        "description": "Choose the stop where you want arrival estimates.",
+        "description": "Choose the stop for **{route_name}** where you want arrival estimates.",
         "data": {
           "stop_id": "Stop"
         }
