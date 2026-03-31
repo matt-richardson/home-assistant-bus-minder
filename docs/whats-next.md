@@ -29,7 +29,7 @@ Ideas and deferred work for future iterations.
 - **Can't remove a route** — once a route is added, it can't be deselected via the options flow; investigate and fix.
 - **Route 3430 missing** — route 3430 doesn't appear in the list; investigate why it's not being discovered.
 - **Order bus routes properly** — routes presented during config/options flow setup should be sorted in a sensible order (e.g. by route number).
-- **Remove Springfield High references** — audit the codebase, fixtures, and docs for any hardcoded references to "Springfield High" and replace with generic/fictional equivalents.
+- ~~**Remove Springfield High references**~~ — done: replaced with generic `your-operator`/`your-school` equivalents in all committed files.
 
 ## Ops / Release
 
