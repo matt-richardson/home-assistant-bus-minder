@@ -7,10 +7,9 @@ from homeassistant.components.device_tracker import SourceType, TrackerEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
-from homeassistant.helpers.update_coordinator import CoordinatorEntity
-
 from .const import DOMAIN, CONF_ROUTES
 from .coordinator import BusMinderCoordinator
+from .entity import BusMinderEntity
 from .models import BusPosition
 
 _LOGGER = logging.getLogger(__name__)
@@ -24,27 +23,24 @@ async def async_setup_entry(
     coordinator: BusMinderCoordinator = hass.data[DOMAIN][entry.entry_id]
 
     entities = [
-        BusTrackerEntity(coordinator, entry, r["trip_id"], r["route_number"])
+        BusTrackerEntity(coordinator, entry, r["trip_id"], r["route_number"], r["name"])
         for r in entry.data.get(CONF_ROUTES, [])
     ]
     async_add_entities(entities)
 
 
-class BusTrackerEntity(CoordinatorEntity[BusMinderCoordinator], TrackerEntity):
-    _attr_has_entity_name = True
-
+class BusTrackerEntity(BusMinderEntity, TrackerEntity):
     def __init__(
         self,
         coordinator: BusMinderCoordinator,
         entry: ConfigEntry,
         trip_id: int,
         route_number: str,
+        route_name: str,
     ) -> None:
-        super().__init__(coordinator)
-        self._trip_id = trip_id
-        self._route_number = route_number
+        super().__init__(coordinator, entry, trip_id, route_number, route_name)
         self._attr_unique_id = f"{entry.entry_id}_{trip_id}_tracker"
-        self._attr_name = f"BusMinder {route_number}"
+        self._attr_name = None  # device tracker IS the device; no suffix
         self.entity_id = f"device_tracker.busminder_{route_number.lower()}"
 
     @property

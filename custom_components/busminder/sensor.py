@@ -13,8 +13,6 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import UnitOfTime
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
-from homeassistant.helpers.update_coordinator import CoordinatorEntity
-
 from .const import (
     DOMAIN,
     CONF_ROUTES,
@@ -24,6 +22,7 @@ from .const import (
     CONF_MONITORED_STOP_LNG,
 )
 from .coordinator import BusMinderCoordinator
+from .entity import BusMinderEntity
 from .eta import estimate_eta
 from .models import BusPosition, Route, Stop
 
@@ -61,10 +60,10 @@ async def async_setup_entry(
     async_add_entities(entities)
 
 
-class BusEtaSensor(CoordinatorEntity[BusMinderCoordinator], SensorEntity):
+class BusEtaSensor(BusMinderEntity, SensorEntity):
     _attr_native_unit_of_measurement = UnitOfTime.MINUTES
     _attr_state_class = SensorStateClass.MEASUREMENT
-    _attr_has_entity_name = True
+    _attr_translation_key = "eta"
 
     def __init__(
         self,
@@ -73,11 +72,11 @@ class BusEtaSensor(CoordinatorEntity[BusMinderCoordinator], SensorEntity):
         route: Route,
         monitored_stop: Stop,
     ) -> None:
-        super().__init__(coordinator)
+        super().__init__(coordinator, entry, route.trip_id, route.route_number, route.name)
         self._route = route
         self._monitored_stop = monitored_stop
         self._attr_unique_id = f"{entry.entry_id}_{route.trip_id}_eta"
-        self._attr_name = f"BusMinder {route.route_number} ETA"
+        self._attr_name = "ETA"
         self.entity_id = f"sensor.busminder_{route.route_number.lower()}_eta"
 
     @property
