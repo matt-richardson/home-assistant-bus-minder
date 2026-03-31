@@ -2,11 +2,11 @@ from __future__ import annotations
 
 from typing import Any, Optional
 
-import aiohttp
 import voluptuous as vol
 from homeassistant.config_entries import ConfigEntry, ConfigFlow, ConfigFlowResult, OptionsFlow
 from homeassistant.core import callback
 from homeassistant.helpers import selector
+from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from .const import CONF_OPERATOR_URL, CONF_ROUTE_GROUP_NAME, CONF_ROUTE_GROUP_UUID, CONF_ROUTES, DOMAIN
 from .exceptions import BusMinderConnectionError
@@ -36,8 +36,8 @@ class BusMinderConfigFlow(ConfigFlow, domain=DOMAIN):  # type: ignore[call-arg] 
         if user_input is not None:
             url = user_input[CONF_OPERATOR_URL].strip()
             try:
-                async with aiohttp.ClientSession() as session:
-                    group = await fetch_route_group_from_operator_url(session, url)
+                session = async_get_clientsession(self.hass)
+                group = await fetch_route_group_from_operator_url(session, url)
             except BusMinderConnectionError as exc:
                 msg = str(exc)
                 if "Cannot connect" in msg:
@@ -194,8 +194,8 @@ class BusMinderOptionsFlow(OptionsFlow):
         if user_input is not None:
             url = user_input[CONF_OPERATOR_URL].strip()
             try:
-                async with aiohttp.ClientSession() as session:
-                    group = await fetch_route_group_from_operator_url(session, url)
+                session = async_get_clientsession(self.hass)
+                group = await fetch_route_group_from_operator_url(session, url)
             except BusMinderConnectionError as exc:
                 msg = str(exc)
                 if "Cannot connect" in msg:
