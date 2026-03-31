@@ -2,16 +2,18 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from datetime import datetime, timezone
 from typing import Optional
 
 import aiohttp
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers import issue_registry as ir
+from homeassistant.helpers.issue_registry import IssueSeverity
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
 from .const import (
     DOMAIN,
+    CONF_OPERATOR_URL,
     CONF_ROUTE_GROUP_UUID,
     CONF_ROUTES,
     CONF_MONITORED_STOP_ID,
@@ -19,11 +21,13 @@ from .const import (
     CONF_MONITORED_STOP_LNG,
     CONF_MONITORED_STOP_NAME,
 )
-from .eta import SpeedTracker, estimate_eta
+from .eta import SpeedTracker
 from .models import BusPosition, Route, Stop
 from .signalr import SignalRClient
 
 _LOGGER = logging.getLogger(__name__)
+
+RECONNECT_THRESHOLD = 3
 
 
 class BusMinderCoordinator(DataUpdateCoordinator[dict[int, BusPosition]]):
@@ -39,8 +43,11 @@ class BusMinderCoordinator(DataUpdateCoordinator[dict[int, BusPosition]]):
         self._entry = entry
         self._sse_task: Optional[asyncio.Task] = None
         self._speed_tracker = SpeedTracker()
+        self._failure_count: int = 0
+        self.connection_failed: bool = False
 
-        route_data = entry.data.get(CONF_ROUTES, [])
+        effective = {**entry.data, **entry.options}
+        route_data = effective.get(CONF_ROUTES, [])
         self._monitored_routes: dict[int, Route] = {
             r["trip_id"]: Route(
                 trip_id=r["trip_id"],
@@ -54,10 +61,10 @@ class BusMinderCoordinator(DataUpdateCoordinator[dict[int, BusPosition]]):
         self._monitored_trip_ids: set[int] = set(self._monitored_routes.keys())
 
         self._monitored_stop = Stop(
-            id=entry.data[CONF_MONITORED_STOP_ID],
-            name=entry.data[CONF_MONITORED_STOP_NAME],
-            lat=entry.data[CONF_MONITORED_STOP_LAT],
-            lng=entry.data[CONF_MONITORED_STOP_LNG],
+            id=effective[CONF_MONITORED_STOP_ID],
+            name=effective[CONF_MONITORED_STOP_NAME],
+            lat=effective[CONF_MONITORED_STOP_LAT],
+            lng=effective[CONF_MONITORED_STOP_LNG],
             sequence=0,
         )
 
@@ -80,7 +87,9 @@ class BusMinderCoordinator(DataUpdateCoordinator[dict[int, BusPosition]]):
 
     async def _run_sse(self) -> None:
         """Maintain the SSE connection, reconnecting on error."""
-        uuid = self._entry.data[CONF_ROUTE_GROUP_UUID]
+        effective = {**self._entry.data, **self._entry.options}
+        uuid = effective[CONF_ROUTE_GROUP_UUID]
+        operator_url = effective.get(CONF_OPERATOR_URL, uuid)
         backoff = 5
         while True:
             try:
@@ -89,17 +98,41 @@ class BusMinderCoordinator(DataUpdateCoordinator[dict[int, BusPosition]]):
                     _LOGGER.info("BusMinder: connecting to route group %s", uuid)
                     async for position in client.stream():
                         self._on_position(position)
-                    backoff = 5
+                    # Stream ended cleanly — treat as a transient failure to reconnect
+                    raise Exception("SSE stream ended unexpectedly")
             except asyncio.CancelledError:
                 raise
             except Exception as exc:
-                _LOGGER.warning("BusMinder SSE error (reconnecting in %ds): %s", backoff, exc)
+                self._failure_count += 1
+                _LOGGER.warning(
+                    "BusMinder SSE error (attempt %d, reconnecting in %ds): %s",
+                    self._failure_count,
+                    backoff,
+                    exc,
+                )
+                if self._failure_count >= RECONNECT_THRESHOLD and not self.connection_failed:
+                    self.connection_failed = True
+                    ir.async_create_issue(
+                        self.hass,
+                        DOMAIN,
+                        "connection_failed",
+                        is_fixable=False,
+                        severity=IssueSeverity.WARNING,
+                        translation_key="connection_failed",
+                        translation_placeholders={"operator_url": operator_url},
+                    )
                 await asyncio.sleep(backoff)
                 backoff = min(backoff * 2, 60)
 
     def _on_position(self, pos: BusPosition) -> None:
         if pos.trip_id not in self._monitored_trip_ids:
             return
+
+        # Reset failure tracking on successful data
+        if self.connection_failed:
+            self.connection_failed = False
+            self._failure_count = 0
+            ir.async_delete_issue(self.hass, DOMAIN, "connection_failed")
 
         self._speed_tracker.update(pos.trip_id, pos.lat, pos.lng, pos.received_at)
 

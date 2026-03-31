@@ -56,3 +56,47 @@ async def test_coordinator_filters_unmonitored_routes(hass: HomeAssistant, mock_
         await asyncio.sleep(0.1)
 
     assert coordinator.data is None or 99999 not in coordinator.data
+
+
+async def test_repair_issue_raised_after_three_failures(hass: HomeAssistant, mock_config_entry):
+    """Repair issue is created after RECONNECT_THRESHOLD consecutive SSE failures."""
+    from homeassistant.helpers import issue_registry as ir
+
+    call_count = 0
+
+    async def failing_stream():
+        nonlocal call_count
+        call_count += 1
+        raise Exception("SSE connection lost")
+        yield  # make it an async generator
+
+    with patch("custom_components.busminder.coordinator.SignalRClient") as MockClient:
+        with patch("custom_components.busminder.coordinator.asyncio.sleep"):
+            MockClient.return_value.stream = failing_stream
+            mock_config_entry.add_to_hass(hass)
+            await hass.config_entries.async_setup(mock_config_entry.entry_id)
+            # Let several reconnect cycles run
+            for _ in range(10):
+                await hass.async_block_till_done()
+
+    issue_reg = ir.async_get(hass)
+    issue = issue_reg.async_get_issue("busminder", "connection_failed")
+    assert issue is not None
+
+
+async def test_connection_failed_flag_set_after_three_failures(hass: HomeAssistant, mock_config_entry):
+    """coordinator.connection_failed is True after RECONNECT_THRESHOLD failures."""
+    async def failing_stream():
+        raise Exception("SSE connection lost")
+        yield
+
+    with patch("custom_components.busminder.coordinator.SignalRClient") as MockClient:
+        with patch("custom_components.busminder.coordinator.asyncio.sleep"):
+            MockClient.return_value.stream = failing_stream
+            mock_config_entry.add_to_hass(hass)
+            await hass.config_entries.async_setup(mock_config_entry.entry_id)
+            for _ in range(10):
+                await hass.async_block_till_done()
+
+    coordinator = hass.data["busminder"][mock_config_entry.entry_id]
+    assert coordinator.connection_failed is True
