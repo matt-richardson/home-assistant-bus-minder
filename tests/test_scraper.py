@@ -27,7 +27,7 @@ async def test_fetch_route_group_success(mock_aiohttp):
         group = await fetch_route_group_from_operator_url(session, OPERATOR_URL)
 
     assert group.uuid == "aaaaaaaa-0000-4000-8000-000000000001"
-    assert group.name == "Springfield High - PM"
+    assert group.name == "Springfield High"
     assert len(group.routes) == 2
     assert group.routes[0].route_number == "1001"
     assert group.routes[1].route_number == "1002"

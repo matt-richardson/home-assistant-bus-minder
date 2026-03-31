@@ -63,7 +63,14 @@ class Route:
     @classmethod
     def from_metadata(cls, data: dict, uuid: str = "") -> "Route":
         name = data.get("name", "")
-        route_number = name.split(" : ")[0].strip() if " : " in name else name
+        # Route names use either " : " or " - " as the separator before the description
+        # e.g. "3427 : Billanook 3 | ..." or "3427 - Billanook 3 | ..."
+        for sep in (" : ", " - "):
+            if sep in name:
+                route_number = name.split(sep)[0].strip()
+                break
+        else:
+            route_number = name
         stops = [Stop.from_metadata(s) for s in data.get("stops", [])]
         return cls(
             trip_id=data["id"],

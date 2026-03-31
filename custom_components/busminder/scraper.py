@@ -86,4 +86,10 @@ async def fetch_route_group_from_operator_url(
     # Step 3: fetch all route groups and merge
     groups = [await _fetch_route_group(session, uuid) for uuid in uuids]
     all_routes = [route for group in groups for route in group.routes]
-    return RouteGroup(uuid=groups[0].uuid, name=groups[0].name, routes=all_routes)
+
+    # Derive a combined name: strip trailing " - AM" / " - PM" suffixes and deduplicate
+    import re as _re
+    base_names = [_re.sub(r"\s*-\s*(AM|PM)\s*$", "", g.name, flags=_re.IGNORECASE).strip() for g in groups]
+    combined_name = base_names[0] if len(set(base_names)) == 1 else groups[0].name
+
+    return RouteGroup(uuid=groups[0].uuid, name=combined_name, routes=all_routes)
