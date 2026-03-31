@@ -34,28 +34,10 @@ def _clean_title(title: str) -> str:
     return " - ".join(parts).strip()
 
 
-async def fetch_route_group_from_operator_url(
-    session: aiohttp.ClientSession, operator_url: str
+async def _fetch_route_group(
+    session: aiohttp.ClientSession, uuid: str
 ) -> RouteGroup:
-    """
-    Fetch the operator's tracking page, extract the BusMinder UUID from the
-    embedded iframe, then fetch the route group metadata from maps.busminder.com.au.
-    """
-    # Step 1: fetch operator page
-    try:
-        async with session.get(operator_url, headers=SIGNALR_HEADERS, timeout=aiohttp.ClientTimeout(total=10)) as resp:
-            resp.raise_for_status()
-            html = await resp.text()
-    except aiohttp.ClientError as exc:
-        raise BusMinderConnectionError(f"Cannot connect to {operator_url}: {exc}") from exc
-
-    # Step 2: extract UUID
-    match = _IFRAME_RE.search(html)
-    if not match:
-        raise BusMinderConnectionError(f"No BusMinder iframe found on {operator_url}")
-    uuid = match.group(1).lower()
-
-    # Step 3: fetch route group page
+    """Fetch a single route group from maps.busminder.com.au by UUID."""
     maps_url = f"{MAPS_BASE_URL}/route/live/{uuid.upper()}"
     try:
         async with session.get(maps_url, headers=SIGNALR_HEADERS, timeout=aiohttp.ClientTimeout(total=10)) as resp:
@@ -64,7 +46,6 @@ async def fetch_route_group_from_operator_url(
     except aiohttp.ClientError as exc:
         raise BusMinderConnectionError(f"Cannot fetch route group page {maps_url}: {exc}") from exc
 
-    # Step 4: parse routemap JSON from inline script
     match = _ROUTEMAP_RE.search(maps_html)
     if not match:
         raise BusMinderConnectionError("Could not find routemap data on BusMinder page")
@@ -74,10 +55,35 @@ async def fetch_route_group_from_operator_url(
     except json.JSONDecodeError as exc:
         raise BusMinderConnectionError(f"Invalid routemap JSON: {exc}") from exc
 
-    # Step 5: extract title for group name
     title_match = re.search(r"<title>([^<]+)</title>", maps_html)
     raw_title = title_match.group(1).strip() if title_match else uuid
     group_name = _clean_title(raw_title)
 
-    routes = [Route.from_metadata(r) for r in data.get("routes", [])]
+    routes = [Route.from_metadata(r, uuid=uuid) for r in data.get("routes", [])]
     return RouteGroup(uuid=uuid, name=group_name, routes=routes)
+
+
+async def fetch_route_group_from_operator_url(
+    session: aiohttp.ClientSession, operator_url: str
+) -> RouteGroup:
+    """
+    Fetch the operator's tracking page, extract all BusMinder UUIDs from
+    embedded iframes, fetch each route group, and return them merged.
+    """
+    # Step 1: fetch operator page
+    try:
+        async with session.get(operator_url, headers=SIGNALR_HEADERS, timeout=aiohttp.ClientTimeout(total=10)) as resp:
+            resp.raise_for_status()
+            html = await resp.text()
+    except aiohttp.ClientError as exc:
+        raise BusMinderConnectionError(f"Cannot connect to {operator_url}: {exc}") from exc
+
+    # Step 2: extract all UUIDs (operators may embed AM and PM groups as separate iframes)
+    uuids = [u.lower() for u in _IFRAME_RE.findall(html)]
+    if not uuids:
+        raise BusMinderConnectionError(f"No BusMinder iframe found on {operator_url}")
+
+    # Step 3: fetch all route groups and merge
+    groups = [await _fetch_route_group(session, uuid) for uuid in uuids]
+    all_routes = [route for group in groups for route in group.routes]
+    return RouteGroup(uuid=groups[0].uuid, name=groups[0].name, routes=all_routes)

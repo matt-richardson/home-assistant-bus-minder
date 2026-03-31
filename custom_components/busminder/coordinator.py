@@ -41,7 +41,7 @@ class BusMinderCoordinator(DataUpdateCoordinator[dict[int, BusPosition]]):
     def __init__(self, hass: HomeAssistant, entry: ConfigEntry) -> None:
         super().__init__(hass, _LOGGER, name=DOMAIN, update_interval=None)
         self._entry = entry
-        self._sse_task: Optional[asyncio.Task] = None
+        self._sse_tasks: list[asyncio.Task] = []
         self._speed_tracker = SpeedTracker()
         self._failure_count: int = 0
         self.connection_failed: bool = False
@@ -71,24 +71,33 @@ class BusMinderCoordinator(DataUpdateCoordinator[dict[int, BusPosition]]):
         self.etas: dict[int, Optional[float]] = {}  # trip_id → minutes or None
 
     async def async_start(self) -> None:
-        """Start the background SSE task."""
-        self._sse_task = self.hass.async_create_background_task(
-            self._run_sse(), "busminder_sse"
-        )
+        """Start one background SSE task per unique route group UUID."""
+        effective = {**self._entry.data, **self._entry.options}
+        fallback_uuid = effective.get(CONF_ROUTE_GROUP_UUID, "")
+        uuids = {
+            r.get("uuid") or fallback_uuid
+            for r in effective.get(CONF_ROUTES, [])
+            if r.get("uuid") or fallback_uuid
+        }
+        for uuid in uuids:
+            task = self.hass.async_create_background_task(
+                self._run_sse(uuid), f"busminder_sse_{uuid}"
+            )
+            self._sse_tasks.append(task)
 
     async def async_shutdown(self) -> None:
-        """Cancel the SSE task on unload."""
-        if self._sse_task and not self._sse_task.done():
-            self._sse_task.cancel()
-            try:
-                await self._sse_task
-            except asyncio.CancelledError:
-                pass
+        """Cancel all SSE tasks on unload."""
+        for task in self._sse_tasks:
+            if not task.done():
+                task.cancel()
+                try:
+                    await task
+                except asyncio.CancelledError:
+                    pass
 
-    async def _run_sse(self) -> None:
-        """Maintain the SSE connection, reconnecting on error."""
+    async def _run_sse(self, uuid: str) -> None:
+        """Maintain the SSE connection for one route group UUID, reconnecting on error."""
         effective = {**self._entry.data, **self._entry.options}
-        uuid = effective[CONF_ROUTE_GROUP_UUID]
         operator_url = effective.get(CONF_OPERATOR_URL, uuid)
         backoff = 5
         while True:

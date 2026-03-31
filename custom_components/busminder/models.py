@@ -57,10 +57,11 @@ class Route:
     name: str
     route_number: str
     colour: str
+    uuid: str = ""
     stops: list[Stop] = field(default_factory=list)
 
     @classmethod
-    def from_metadata(cls, data: dict) -> "Route":
+    def from_metadata(cls, data: dict, uuid: str = "") -> "Route":
         name = data.get("name", "")
         route_number = name.split(" : ")[0].strip() if " : " in name else name
         stops = [Stop.from_metadata(s) for s in data.get("stops", [])]
@@ -69,6 +70,7 @@ class Route:
             name=name,
             route_number=route_number,
             colour=data.get("colour", "#000000"),
+            uuid=uuid,
             stops=stops,
         )
 

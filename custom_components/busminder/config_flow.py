@@ -126,7 +126,7 @@ class BusMinderConfigFlow(ConfigFlow, domain=DOMAIN):
                 )
 
             selected_routes = [
-                {"trip_id": r.trip_id, "name": r.name, "route_number": r.route_number}
+                {"trip_id": r.trip_id, "name": r.name, "route_number": r.route_number, "uuid": r.uuid}
                 for r in self._route_group.routes
                 if r.trip_id in self._selected_trip_ids
             ]
@@ -285,7 +285,7 @@ class BusMinderOptionsFlow(OptionsFlow):
                 )
 
             selected_routes = [
-                {"trip_id": r.trip_id, "name": r.name, "route_number": r.route_number}
+                {"trip_id": r.trip_id, "name": r.name, "route_number": r.route_number, "uuid": r.uuid}
                 for r in self._route_group.routes
                 if r.trip_id in self._selected_trip_ids
             ]
