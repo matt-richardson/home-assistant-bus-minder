@@ -1,5 +1,6 @@
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
+from unittest.mock import patch
 
 from custom_components.busminder.const import (
     CONF_OPERATOR_URL,
@@ -15,6 +16,15 @@ pytest_plugins = ["pytest_homeassistant_custom_component"]
 @pytest.fixture(autouse=True)
 def auto_enable_custom_integrations(enable_custom_integrations):
     yield
+
+
+@pytest.fixture(autouse=True)
+def mock_coordinator_aiohttp_session():
+    """Prevent aiohttp.ClientSession in the coordinator from spawning a
+    _run_safe_shutdown_loop thread on Python 3.12, which HA's test teardown
+    fixture treats as a lingering thread and fails the test."""
+    with patch("custom_components.busminder.coordinator.aiohttp.ClientSession"):
+        yield
 
 
 @pytest.fixture

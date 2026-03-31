@@ -42,9 +42,7 @@ MOCK_ROUTE_GROUP = RouteGroup(
 @pytest.fixture(autouse=True)
 def mock_ha_session():
     """Prevent aiohttp from creating a real ClientSession (and its background thread) in tests."""
-    with patch("custom_components.busminder.config_flow.async_get_clientsession"), patch(
-        "custom_components.busminder.coordinator.aiohttp.ClientSession"
-    ):
+    with patch("custom_components.busminder.config_flow.async_get_clientsession"):
         yield
 
 
