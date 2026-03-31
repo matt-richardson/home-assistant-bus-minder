@@ -5,7 +5,7 @@ from homeassistant import config_entries
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType
 
-from custom_components.busminder.const import DOMAIN
+from custom_components.busminder.const import DOMAIN, CONF_OPERATOR_URL, CONF_ROUTES
 from custom_components.busminder.models import Stop, Route, RouteGroup
 from custom_components.busminder.exceptions import BusMinderConnectionError
 
@@ -115,3 +115,90 @@ async def test_full_flow_creates_entry(hass: HomeAssistant, mock_scraper):
     assert result["data"]["route_group_uuid"] == "aaaaaaaa-0000-4000-8000-000000000001"
     assert result["data"]["monitored_stop_id"] == 10001
     assert len(result["data"]["routes"]) == 2
+
+
+async def test_options_flow_shows_url_form(hass: HomeAssistant, mock_config_entry):
+    """Options flow opens with the URL form."""
+    async def empty_stream():
+        return
+        yield
+
+    with patch("custom_components.busminder.coordinator.SignalRClient") as MockClient:
+        MockClient.return_value.stream = empty_stream
+        mock_config_entry.add_to_hass(hass)
+        await hass.config_entries.async_setup(mock_config_entry.entry_id)
+        await hass.async_block_till_done()
+
+    result = await hass.config_entries.options.async_init(
+        mock_config_entry.entry_id
+    )
+    assert result["type"] == FlowResultType.FORM
+    assert result["step_id"] == "user"
+
+
+async def test_options_flow_full_reconfiguration(hass: HomeAssistant, mock_config_entry, mock_scraper):
+    """Options flow full 3-step sequence saves new config to entry.options."""
+    async def empty_stream():
+        return
+        yield
+
+    NEW_URL = "https://example-buslines.com.au/live-tracking/springfield-high-revised/"
+
+    with patch("custom_components.busminder.coordinator.SignalRClient") as MockClient:
+        MockClient.return_value.stream = empty_stream
+        mock_config_entry.add_to_hass(hass)
+        await hass.config_entries.async_setup(mock_config_entry.entry_id)
+        await hass.async_block_till_done()
+
+    result = await hass.config_entries.options.async_init(
+        mock_config_entry.entry_id
+    )
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"], user_input={"operator_url": NEW_URL}
+    )
+    assert result["step_id"] == "pick_routes"
+
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"], user_input={"trip_ids": ["10001"]}
+    )
+    assert result["step_id"] == "pick_stop"
+
+    with patch("custom_components.busminder.coordinator.SignalRClient") as MockClient2:
+        MockClient2.return_value.stream = empty_stream
+        result = await hass.config_entries.options.async_configure(
+            result["flow_id"], user_input={"stop_id": "10001"}
+        )
+        await hass.async_block_till_done()
+
+    assert result["type"] == FlowResultType.CREATE_ENTRY
+    assert mock_config_entry.options[CONF_OPERATOR_URL] == NEW_URL
+    assert len(mock_config_entry.options[CONF_ROUTES]) == 1
+
+
+async def test_options_flow_cannot_connect(hass: HomeAssistant, mock_config_entry):
+    """Options flow shows cannot_connect error on bad URL."""
+    async def empty_stream():
+        return
+        yield
+
+    with patch("custom_components.busminder.coordinator.SignalRClient") as MockClient:
+        MockClient.return_value.stream = empty_stream
+        mock_config_entry.add_to_hass(hass)
+        await hass.config_entries.async_setup(mock_config_entry.entry_id)
+        await hass.async_block_till_done()
+
+    result = await hass.config_entries.options.async_init(
+        mock_config_entry.entry_id
+    )
+
+    with patch(
+        "custom_components.busminder.config_flow.fetch_route_group_from_operator_url",
+        side_effect=BusMinderConnectionError("Cannot connect"),
+    ):
+        result = await hass.config_entries.options.async_configure(
+            result["flow_id"],
+            user_input={"operator_url": "https://bad-url.example.com/"},
+        )
+
+    assert result["type"] == FlowResultType.FORM
+    assert result["errors"] == {"base": "cannot_connect"}
