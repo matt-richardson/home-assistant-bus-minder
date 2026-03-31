@@ -101,3 +101,41 @@ def test_speed_tracker_computes_speed():
     speed = tracker.get_speed(10001)
     assert speed is not None
     assert 25 < speed < 40
+
+
+def test_estimate_eta_monitored_stop_not_in_route():
+    """Returns None when the monitored stop is not part of the route."""
+    stops = [
+        make_stop(1, -37.780, 145.340, 1),
+        make_stop(2, -37.785, 145.340, 2),
+    ]
+    route = make_route(10001, stops)
+    bus = make_bus(10001, -37.782, 145.340, last_stop_id=1)
+    # monitored stop with id=999 is not in the route
+    monitored = make_stop(999, -37.790, 145.340, 3)
+    result = estimate_eta(bus, route, monitored, speed_kmh=30.0)
+    assert result is None
+
+
+def test_estimate_eta_last_stop_id_none():
+    """Returns None when bus.last_stop_id is None."""
+    stops = [
+        make_stop(1, -37.780, 145.340, 1),
+        make_stop(2, -37.785, 145.340, 2),
+    ]
+    route = make_route(10001, stops)
+    bus = make_bus(10001, -37.782, 145.340, last_stop_id=None)
+    result = estimate_eta(bus, route, stops[1], speed_kmh=30.0)
+    assert result is None
+
+
+def test_speed_tracker_returns_none_when_all_samples_too_close_in_time():
+    """Returns None when all consecutive samples are < 1 second apart."""
+    from datetime import datetime, timezone, timedelta
+    tracker = SpeedTracker()
+    t0 = datetime(2026, 3, 30, 15, 0, 0, tzinfo=timezone.utc)
+    # Add two samples less than 1 second apart
+    tracker.update(10001, -37.780, 145.340, t0)
+    tracker.update(10001, -37.785, 145.340, t0 + timedelta(milliseconds=500))
+    result = tracker.get_speed(10001)
+    assert result is None

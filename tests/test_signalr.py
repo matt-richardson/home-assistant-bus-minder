@@ -73,3 +73,125 @@ async def test_parse_non_gps_method_ignored():
     async with aiohttp.ClientSession() as session:
         client = SignalRClient(session, ROUTE_UUID)
         assert client._parse_sse_payload(msg) == []
+
+
+async def test_start(mock_aiohttp):
+    """_start() calls /start endpoint with the connection token."""
+    import urllib.parse
+    token = TOKEN
+    qs = urllib.parse.urlencode({
+        "transport": "serverSentEvents",
+        "clientProtocol": "2.0",
+        "connectionToken": token,
+        "connectionData": '[{"name":"broadcasthub"}]',
+    })
+    mock_aiohttp.get(
+        f"https://live.busminder.com.au/signalr/start?{qs}",
+        payload={"Response": "started"},
+    )
+    async with aiohttp.ClientSession() as session:
+        client = SignalRClient(session, ROUTE_UUID)
+        await client._start(token)  # should not raise
+
+
+async def test_register(mock_aiohttp):
+    """_register() POSTs to /send endpoint."""
+    import urllib.parse
+    token = TOKEN
+    qs = urllib.parse.urlencode({
+        "transport": "serverSentEvents",
+        "clientProtocol": "2.0",
+        "connectionToken": token,
+        "connectionData": '[{"name":"broadcasthub"}]',
+    })
+    mock_aiohttp.post(
+        f"https://live.busminder.com.au/signalr/send?{qs}",
+        payload={"I": "0"},
+    )
+    async with aiohttp.ClientSession() as session:
+        client = SignalRClient(session, ROUTE_UUID)
+        await client._register(token)  # should not raise
+
+
+async def test_parse_invalid_json_returns_empty():
+    """_parse_sse_payload returns empty list for invalid JSON."""
+    async with aiohttp.ClientSession() as session:
+        client = SignalRClient(session, ROUTE_UUID)
+        result = client._parse_sse_payload("not valid json{{")
+    assert result == []
+
+
+async def test_parse_gps_with_empty_args_ignored():
+    """GPS messages with empty A array are skipped."""
+    msg = json.dumps({"M": [{"M": "gps", "A": []}]})
+    async with aiohttp.ClientSession() as session:
+        client = SignalRClient(session, ROUTE_UUID)
+        result = client._parse_sse_payload(msg)
+    assert result == []
+
+
+async def test_parse_gps_bad_args_returns_empty():
+    """GPS messages with malformed args (KeyError, TypeError) are skipped."""
+    msg = json.dumps({"M": [{"M": "gps", "A": ["not_json_at_all"]}]})
+    async with aiohttp.ClientSession() as session:
+        client = SignalRClient(session, ROUTE_UUID)
+        result = client._parse_sse_payload(msg)
+    assert result == []
+
+
+async def test_stream_yields_positions(mock_aiohttp):
+    """stream() negotiates, connects, and yields BusPosition objects."""
+    import urllib.parse
+    from aiohttp import ClientSession
+    from aioresponses import CallbackResult
+
+    token = TOKEN
+
+    # Negotiate
+    neg_qs = urllib.parse.urlencode({"clientProtocol": "2.0", "connectionData": '[{"name":"broadcasthub"}]'})
+    mock_aiohttp.get(
+        f"https://live.busminder.com.au/signalr/negotiate?{neg_qs}",
+        payload=NEGOTIATE_RESP,
+    )
+
+    # Connect — SSE stream: send "initialized" then a GPS message
+    sse_lines = (
+        f"data: initialized\n\n"
+        f"data: {GPS_MSG}\n\n"
+    ).encode()
+
+    connect_qs = urllib.parse.urlencode({
+        "transport": "serverSentEvents",
+        "clientProtocol": "2.0",
+        "connectionToken": token,
+        "connectionData": '[{"name":"broadcasthub"}]',
+    })
+    mock_aiohttp.get(
+        f"https://live.busminder.com.au/signalr/connect?{connect_qs}",
+        body=sse_lines,
+        content_type="text/event-stream",
+    )
+
+    # Start
+    start_qs = connect_qs  # same params
+    mock_aiohttp.get(
+        f"https://live.busminder.com.au/signalr/start?{start_qs}",
+        payload={"Response": "started"},
+    )
+
+    # Register (POST to /send)
+    mock_aiohttp.post(
+        f"https://live.busminder.com.au/signalr/send?{connect_qs}",
+        payload={"I": "0"},
+    )
+
+    positions = []
+    async with aiohttp.ClientSession() as session:
+        client = SignalRClient(session, ROUTE_UUID)
+        with patch("custom_components.busminder.signalr.asyncio.sleep"):
+            async for pos in client.stream():
+                positions.append(pos)
+                break  # only need one
+
+    assert len(positions) == 1
+    assert positions[0].trip_id == 10001

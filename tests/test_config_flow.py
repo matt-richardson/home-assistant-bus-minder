@@ -202,3 +202,198 @@ async def test_options_flow_cannot_connect(hass: HomeAssistant, mock_config_entr
 
     assert result["type"] == FlowResultType.FORM
     assert result["errors"] == {"base": "cannot_connect"}
+
+
+async def test_step_user_no_busminder_error(hass: HomeAssistant):
+    """Initial flow shows no_busminder error when no iframe found."""
+    with patch(
+        "custom_components.busminder.config_flow.fetch_route_group_from_operator_url",
+        side_effect=BusMinderConnectionError("No BusMinder iframe found"),
+    ):
+        result = await hass.config_entries.flow.async_init(
+            DOMAIN, context={"source": config_entries.SOURCE_USER}
+        )
+        result = await hass.config_entries.flow.async_configure(
+            result["flow_id"], user_input={"operator_url": OPERATOR_URL}
+        )
+    assert result["type"] == FlowResultType.FORM
+    assert result["errors"] == {"base": "no_busminder"}
+
+
+async def test_step_user_unknown_error(hass: HomeAssistant):
+    """Initial flow shows unknown error on unexpected exception."""
+    with patch(
+        "custom_components.busminder.config_flow.fetch_route_group_from_operator_url",
+        side_effect=RuntimeError("unexpected"),
+    ):
+        result = await hass.config_entries.flow.async_init(
+            DOMAIN, context={"source": config_entries.SOURCE_USER}
+        )
+        result = await hass.config_entries.flow.async_configure(
+            result["flow_id"], user_input={"operator_url": OPERATOR_URL}
+        )
+    assert result["type"] == FlowResultType.FORM
+    assert result["errors"] == {"base": "unknown"}
+
+
+async def test_step_pick_routes_empty_selection_shows_error(hass: HomeAssistant, mock_scraper):
+    """Submitting no routes in pick_routes step shows unknown error."""
+    result = await hass.config_entries.flow.async_init(
+        DOMAIN, context={"source": config_entries.SOURCE_USER}
+    )
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], user_input={"operator_url": OPERATOR_URL}
+    )
+    assert result["step_id"] == "pick_routes"
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], user_input={"trip_ids": []}
+    )
+    assert result["type"] == FlowResultType.FORM
+    assert result["step_id"] == "pick_routes"
+    assert result["errors"] == {"base": "unknown"}
+
+
+async def test_step_pick_stop_unknown_stop_id(hass: HomeAssistant, mock_scraper):
+    """Submitting an invalid stop_id in pick_stop step shows unknown error."""
+    from custom_components.busminder.config_flow import BusMinderConfigFlow
+    from custom_components.busminder.models import Stop
+
+    result = await hass.config_entries.flow.async_init(
+        DOMAIN, context={"source": config_entries.SOURCE_USER}
+    )
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], user_input={"operator_url": OPERATOR_URL}
+    )
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], user_input={"trip_ids": ["10001"]}
+    )
+    assert result["step_id"] == "pick_stop"
+    # Bypass schema validation and call async_step_pick_stop directly with an invalid stop_id
+    flow_id = result["flow_id"]
+    flow = hass.config_entries.flow._progress[flow_id]
+    result = await flow.async_step_pick_stop({"stop_id": "99999"})
+    assert result["type"] == FlowResultType.FORM
+    assert result["step_id"] == "pick_stop"
+    assert result["errors"] == {"base": "unknown"}
+
+
+async def test_options_flow_unknown_error(hass: HomeAssistant, mock_config_entry):
+    """Options flow handles unexpected errors with the 'unknown' error key."""
+    async def empty_stream():
+        return
+        yield
+
+    with patch("custom_components.busminder.coordinator.SignalRClient") as MockClient:
+        MockClient.return_value.stream = empty_stream
+        mock_config_entry.add_to_hass(hass)
+        await hass.config_entries.async_setup(mock_config_entry.entry_id)
+        await hass.async_block_till_done()
+
+    result = await hass.config_entries.options.async_init(
+        mock_config_entry.entry_id
+    )
+
+    with patch(
+        "custom_components.busminder.config_flow.fetch_route_group_from_operator_url",
+        side_effect=RuntimeError("unexpected"),
+    ):
+        result = await hass.config_entries.options.async_configure(
+            result["flow_id"],
+            user_input={"operator_url": "https://example.com/"},
+        )
+
+    assert result["type"] == FlowResultType.FORM
+    assert result["errors"] == {"base": "unknown"}
+
+
+async def test_options_flow_no_busminder(hass: HomeAssistant, mock_config_entry):
+    """Options flow shows no_busminder error when no iframe found."""
+    async def empty_stream():
+        return
+        yield
+
+    with patch("custom_components.busminder.coordinator.SignalRClient") as MockClient:
+        MockClient.return_value.stream = empty_stream
+        mock_config_entry.add_to_hass(hass)
+        await hass.config_entries.async_setup(mock_config_entry.entry_id)
+        await hass.async_block_till_done()
+
+    result = await hass.config_entries.options.async_init(
+        mock_config_entry.entry_id
+    )
+
+    with patch(
+        "custom_components.busminder.config_flow.fetch_route_group_from_operator_url",
+        side_effect=BusMinderConnectionError("No BusMinder iframe found"),
+    ):
+        result = await hass.config_entries.options.async_configure(
+            result["flow_id"],
+            user_input={"operator_url": "https://example.com/"},
+        )
+
+    assert result["type"] == FlowResultType.FORM
+    assert result["errors"] == {"base": "no_busminder"}
+
+
+async def test_options_flow_empty_routes_shows_error(hass: HomeAssistant, mock_config_entry, mock_scraper):
+    """Options flow shows unknown error when no routes are selected."""
+    async def empty_stream():
+        return
+        yield
+
+    with patch("custom_components.busminder.coordinator.SignalRClient") as MockClient:
+        MockClient.return_value.stream = empty_stream
+        mock_config_entry.add_to_hass(hass)
+        await hass.config_entries.async_setup(mock_config_entry.entry_id)
+        await hass.async_block_till_done()
+
+    result = await hass.config_entries.options.async_init(
+        mock_config_entry.entry_id
+    )
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"],
+        user_input={"operator_url": "https://example.com/"},
+    )
+    assert result["step_id"] == "pick_routes"
+
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"],
+        user_input={"trip_ids": []},
+    )
+    assert result["type"] == FlowResultType.FORM
+    assert result["step_id"] == "pick_routes"
+    assert result["errors"] == {"base": "unknown"}
+
+
+async def test_options_flow_unknown_stop_id(hass: HomeAssistant, mock_config_entry, mock_scraper):
+    """Options flow shows unknown error when an invalid stop_id is submitted."""
+    async def empty_stream():
+        return
+        yield
+
+    with patch("custom_components.busminder.coordinator.SignalRClient") as MockClient:
+        MockClient.return_value.stream = empty_stream
+        mock_config_entry.add_to_hass(hass)
+        await hass.config_entries.async_setup(mock_config_entry.entry_id)
+        await hass.async_block_till_done()
+
+    result = await hass.config_entries.options.async_init(
+        mock_config_entry.entry_id
+    )
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"],
+        user_input={"operator_url": "https://example.com/"},
+    )
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"],
+        user_input={"trip_ids": ["10001"]},
+    )
+    assert result["step_id"] == "pick_stop"
+
+    # Bypass schema validation and call async_step_pick_stop directly with an invalid stop_id
+    flow_id = result["flow_id"]
+    flow = hass.config_entries.options._progress[flow_id]
+    result = await flow.async_step_pick_stop({"stop_id": "99999"})
+    assert result["type"] == FlowResultType.FORM
+    assert result["step_id"] == "pick_stop"
+    assert result["errors"] == {"base": "unknown"}

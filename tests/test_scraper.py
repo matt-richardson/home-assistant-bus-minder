@@ -73,3 +73,44 @@ async def test_fetch_route_group_connection_error(mock_aiohttp):
     async with aiohttp.ClientSession() as session:
         with pytest.raises(BusMinderConnectionError, match="Cannot connect"):
             await fetch_route_group_from_operator_url(session, OPERATOR_URL)
+
+
+async def test_fetch_route_group_maps_connection_error(mock_aiohttp):
+    """Raises BusMinderConnectionError when maps.busminder.com.au is unreachable."""
+    mock_aiohttp.get(OPERATOR_URL, body=OPERATOR_HTML, content_type="text/html")
+    mock_aiohttp.get(MAPS_URL, exception=aiohttp.ClientConnectionError("timeout"))
+
+    async with aiohttp.ClientSession() as session:
+        with pytest.raises(BusMinderConnectionError, match="Cannot fetch route group page"):
+            await fetch_route_group_from_operator_url(session, OPERATOR_URL)
+
+
+async def test_fetch_route_group_no_routemap_data(mock_aiohttp):
+    """Raises BusMinderConnectionError when routemap data is not found on BusMinder page."""
+    mock_aiohttp.get(OPERATOR_URL, body=OPERATOR_HTML, content_type="text/html")
+    mock_aiohttp.get(
+        MAPS_URL,
+        body="<html><body><title>Test</title>No routemap here</body></html>",
+        content_type="text/html",
+    )
+
+    async with aiohttp.ClientSession() as session:
+        with pytest.raises(BusMinderConnectionError, match="Could not find routemap data"):
+            await fetch_route_group_from_operator_url(session, OPERATOR_URL)
+
+
+async def test_fetch_route_group_invalid_json(mock_aiohttp):
+    """Raises BusMinderConnectionError when routemap JSON is invalid."""
+    invalid_html = OPERATOR_HTML  # has iframe pointing to UUID
+    # Build a page that has the routemap script but with invalid JSON
+    bad_json_html = (
+        "<html><body><title>Test</title>"
+        "<script>var liveMap = new routemap('', {invalid: json:});</script>"
+        "</body></html>"
+    )
+    mock_aiohttp.get(OPERATOR_URL, body=OPERATOR_HTML, content_type="text/html")
+    mock_aiohttp.get(MAPS_URL, body=bad_json_html, content_type="text/html")
+
+    async with aiohttp.ClientSession() as session:
+        with pytest.raises(BusMinderConnectionError, match="Invalid routemap JSON"):
+            await fetch_route_group_from_operator_url(session, OPERATOR_URL)
