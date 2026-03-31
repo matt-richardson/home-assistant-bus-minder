@@ -20,12 +20,25 @@ def auto_enable_custom_integrations(enable_custom_integrations):
 
 
 @pytest.fixture(autouse=True)
-def mock_coordinator_aiohttp_session():
-    """Prevent aiohttp.ClientSession in the coordinator from spawning a
-    _run_safe_shutdown_loop thread on Python 3.12, which HA's test teardown
-    fixture treats as a lingering thread and fails the test."""
-    with patch("custom_components.busminder.coordinator.aiohttp.ClientSession"):
-        yield
+def mock_coordinator_signalr():
+    """Prevent real SignalR connections in every test.
+
+    The default stream holds open indefinitely so the coordinator stays in its
+    'async for' loop and never hits the retry/backoff path (which would cause
+    tests to hang waiting for asyncio.sleep(5+) between retries).
+
+    Tests that need specific stream behaviour can override SignalRClient inside
+    their own patch context.
+    """
+    import asyncio
+
+    async def _hold_open():
+        await asyncio.sleep(999999)
+        yield  # never reached — makes this an async generator
+
+    with patch("custom_components.busminder.coordinator.SignalRClient") as mock_client:
+        mock_client.return_value.stream = _hold_open
+        yield mock_client
 
 
 @pytest.fixture
