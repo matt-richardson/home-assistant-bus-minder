@@ -40,7 +40,7 @@ class BusTrackerEntity(BusMinderEntity, TrackerEntity):
     ) -> None:
         super().__init__(coordinator, entry, trip_id, route_number, route_name)
         self._attr_unique_id = f"{entry.entry_id}_{trip_id}_tracker"
-        self._attr_name = None  # device tracker IS the device; no suffix
+        self._attr_name = None  # None + has_entity_name=True → entity uses device name (HA convention for "main feature" entities)
         self.entity_id = f"device_tracker.busminder_{route_number.lower()}"
 
     @property

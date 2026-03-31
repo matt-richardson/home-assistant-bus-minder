@@ -24,7 +24,6 @@ class BusMinderEntity(CoordinatorEntity[BusMinderCoordinator]):
     ) -> None:
         super().__init__(coordinator)
         self._trip_id = trip_id
-        self._route_number = route_number
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, f"{entry.entry_id}_{trip_id}")},
             name=route_name,
