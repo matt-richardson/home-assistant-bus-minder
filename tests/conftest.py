@@ -1,6 +1,7 @@
+from unittest.mock import patch
+
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
-from unittest.mock import patch
 
 from custom_components.busminder.const import (
     CONF_OPERATOR_URL,
