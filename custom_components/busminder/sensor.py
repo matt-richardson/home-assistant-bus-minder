@@ -38,16 +38,18 @@ async def async_setup_entry(
 ) -> None:
     coordinator: BusMinderCoordinator = hass.data[DOMAIN][entry.entry_id]
 
+    effective = {**entry.data, **entry.options}
+
     monitored_stop = Stop(
-        id=entry.data[CONF_MONITORED_STOP_ID],
-        name=entry.data[CONF_MONITORED_STOP_NAME],
-        lat=entry.data[CONF_MONITORED_STOP_LAT],
-        lng=entry.data[CONF_MONITORED_STOP_LNG],
+        id=effective[CONF_MONITORED_STOP_ID],
+        name=effective[CONF_MONITORED_STOP_NAME],
+        lat=effective[CONF_MONITORED_STOP_LAT],
+        lng=effective[CONF_MONITORED_STOP_LNG],
         sequence=0,
     )
 
     entities = []
-    for route_data in entry.data.get(CONF_ROUTES, []):
+    for route_data in effective.get(CONF_ROUTES, []):
         route = Route(
             trip_id=route_data["trip_id"],
             name=route_data["name"],
@@ -92,6 +94,8 @@ class BusEtaSensor(BusMinderEntity, SensorEntity):
 
     @property
     def available(self) -> bool:
+        if self.coordinator.connection_failed:
+            return False
         return self.coordinator.last_update_success and self._get_position() is not None
 
     @property

@@ -64,3 +64,25 @@ async def test_sensor_shows_eta_minutes(hass: HomeAssistant, mock_config_entry):
     if state.state != STATE_UNAVAILABLE:
         assert state.attributes["bus_number"] == "1528"
         assert state.attributes["status"] in ("approaching", "passed", "not_running")
+
+
+async def test_sensor_unavailable_when_connection_failed(hass: HomeAssistant, mock_config_entry):
+    """Sensor is unavailable when coordinator.connection_failed is True."""
+    async def empty_stream():
+        return
+        yield
+
+    with patch("custom_components.busminder.coordinator.SignalRClient") as MockClient:
+        MockClient.return_value.stream = empty_stream
+        mock_config_entry.add_to_hass(hass)
+        await hass.config_entries.async_setup(mock_config_entry.entry_id)
+        await hass.async_block_till_done()
+
+    coordinator = hass.data["busminder"][mock_config_entry.entry_id]
+    coordinator.connection_failed = True
+    coordinator.async_set_updated_data({10001: make_position()})
+    await hass.async_block_till_done()
+
+    state = hass.states.get("sensor.busminder_1001_eta")
+    assert state is not None
+    assert state.state == STATE_UNAVAILABLE

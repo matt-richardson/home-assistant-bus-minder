@@ -22,9 +22,10 @@ async def async_setup_entry(
 ) -> None:
     coordinator: BusMinderCoordinator = hass.data[DOMAIN][entry.entry_id]
 
+    effective = {**entry.data, **entry.options}
     entities = [
         BusTrackerEntity(coordinator, entry, r["trip_id"], r["route_number"], r["name"])
-        for r in entry.data.get(CONF_ROUTES, [])
+        for r in effective.get(CONF_ROUTES, [])
     ]
     async_add_entities(entities)
 
@@ -46,6 +47,10 @@ class BusTrackerEntity(BusMinderEntity, TrackerEntity):
     @property
     def source_type(self) -> SourceType:
         return SourceType.GPS
+
+    @property
+    def available(self) -> bool:
+        return not self.coordinator.connection_failed
 
     @property
     def latitude(self) -> Optional[float]:
