@@ -1,3 +1,4 @@
+import asyncio
 from unittest.mock import patch
 
 import pytest
@@ -21,7 +22,11 @@ def auto_enable_custom_integrations(enable_custom_integrations):
 
 @pytest.fixture(autouse=True)
 def mock_coordinator_signalr():
-    """Prevent real SignalR connections in every test.
+    """Prevent real SignalR connections and lingering threads in every test.
+
+    Patches coordinator.aiohttp (prevents real ClientSession creation — on
+    Python 3.12+ a real session spawns a _run_safe_shutdown_loop daemon thread
+    that HA's verify_cleanup fixture treats as a failure) and SignalRClient.
 
     The default stream holds open indefinitely so the coordinator stays in its
     'async for' loop and never hits the retry/backoff path (which would cause
@@ -30,13 +35,14 @@ def mock_coordinator_signalr():
     Tests that need specific stream behaviour can override SignalRClient inside
     their own patch context.
     """
-    import asyncio
 
     async def _hold_open():
         await asyncio.sleep(999999)
         yield  # never reached — makes this an async generator
 
-    with patch("custom_components.busminder.coordinator.SignalRClient") as mock_client:
+    with patch("custom_components.busminder.coordinator.aiohttp"), patch(
+        "custom_components.busminder.coordinator.SignalRClient"
+    ) as mock_client:
         mock_client.return_value.stream = _hold_open
         yield mock_client
 
