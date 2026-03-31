@@ -2,8 +2,9 @@ import pytest
 from unittest.mock import patch
 
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers import device_registry as dr
 
-from custom_components.busminder.const import DOMAIN
+from custom_components.busminder.const import CONF_ROUTES, DOMAIN
 
 
 async def test_async_reload_entry(hass: HomeAssistant, mock_config_entry):
@@ -59,3 +60,31 @@ async def test_update_listener_triggers_reload(hass: HomeAssistant, mock_config_
         await hass.async_block_till_done()
 
     assert len(reload_calls) == 1
+
+
+async def test_remove_config_entry_device(hass: HomeAssistant, mock_config_entry):
+    """Removing a device strips its route from config and returns True."""
+    async def empty_stream():
+        return
+        yield
+
+    with patch("custom_components.busminder.coordinator.SignalRClient") as MockClient:
+        MockClient.return_value.stream = empty_stream
+        mock_config_entry.add_to_hass(hass)
+        await hass.config_entries.async_setup(mock_config_entry.entry_id)
+        await hass.async_block_till_done()
+
+    # Find the device for trip_id 10001
+    dev_reg = dr.async_get(hass)
+    device = dev_reg.async_get_device(
+        identifiers={(DOMAIN, f"{mock_config_entry.entry_id}_10001")}
+    )
+    assert device is not None
+
+    from custom_components.busminder import async_remove_config_entry_device
+    result = await async_remove_config_entry_device(hass, mock_config_entry, device)
+
+    assert result is True
+    remaining = [r["trip_id"] for r in mock_config_entry.data[CONF_ROUTES]]
+    assert 10001 not in remaining
+    assert 10002 in remaining
