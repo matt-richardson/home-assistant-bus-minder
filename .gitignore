@@ -7,3 +7,16 @@ __pycache__/
 htmlcov/
 .coverage
 coverage.xml
+
+# Local HA dev instance
+ha-config/
+
+# HAR files (may contain real network traffic / PII)
+*.har
+
+# Internal AI planning docs
+docs/superpowers/
+
+# Personal dev scripts
+bus-location.py
+bus-location.sh
