@@ -20,28 +20,6 @@ def auto_enable_custom_integrations(enable_custom_integrations):
     yield
 
 
-@pytest.fixture(scope="session", autouse=True)
-def prime_pycares_shutdown_thread():
-    """Pre-start pycares' global _run_safe_shutdown_loop thread before any test.
-
-    pycares uses a singleton background thread to safely destroy Channels on
-    Python 3.12+. Because it is a daemon thread that runs indefinitely, any test
-    that first triggers its creation will see it as a 'new' thread in
-    verify_cleanup and fail on pytest-homeassistant-custom-component < 0.13.206.
-
-    Starting it here (session scope, before any per-test verify_cleanup baseline
-    is captured) means every test sees it as a pre-existing thread and never
-    flags it as unexpected. The try/except protects against environments where
-    pycares is absent or its private API changes.
-    """
-    try:
-        import pycares
-
-        pycares._shutdown_manager.start()
-    except (ImportError, AttributeError):
-        pass
-
-
 @pytest.fixture(autouse=True)
 def mock_coordinator_signalr():
     """Prevent real SignalR connections and lingering threads in every test.
@@ -62,9 +40,7 @@ def mock_coordinator_signalr():
         await asyncio.sleep(999999)
         yield  # never reached — makes this an async generator
 
-    with patch("custom_components.busminder.coordinator.aiohttp"), patch(
-        "custom_components.busminder.coordinator.SignalRClient"
-    ) as mock_client:
+    with patch("custom_components.busminder.coordinator.SignalRClient") as mock_client:
         mock_client.return_value.stream = _hold_open
         yield mock_client
 

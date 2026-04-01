@@ -1,58 +1,44 @@
 name: Validate
-
 on:
   push:
   pull_request:
-
 jobs:
   validate:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ["3.12", "3.13"]
-
+        python-version: ["3.13"]
     steps:
       - uses: actions/checkout@v4
-
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
-
       - name: Install dependencies
         run: pip install -r requirements-dev.txt
-
       - name: black
         run: black --check .
-
       - name: isort
         run: isort --check-only .
-
       - name: flake8
         run: flake8 .
-
       - name: pylint
         run: pylint custom_components/busminder
-
       - name: mypy
         run: mypy custom_components/busminder
-
       - name: pytest with coverage
         run: pytest --cov=custom_components.busminder --cov-report=xml --cov-fail-under=95
-
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v4
-        if: matrix.python-version == '3.12'
+        if: matrix.python-version == '3.13'
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           fail_ci_if_error: false
-
   hassfest:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: home-assistant/actions/hassfest@master
-
   hacs:
     runs-on: ubuntu-latest
     steps:
