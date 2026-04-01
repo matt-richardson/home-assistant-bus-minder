@@ -19,7 +19,7 @@ PARALLEL_UPDATES = 0
 
 
 async def async_setup_entry(
-    hass: HomeAssistant,
+    hass: HomeAssistant,  # pylint: disable=unused-argument
     entry: ConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:

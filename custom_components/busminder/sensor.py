@@ -24,7 +24,7 @@ NOT_RUNNING_THRESHOLD_S = 300  # 5 minutes without update → "not_running"
 
 
 async def async_setup_entry(
-    hass: HomeAssistant,
+    hass: HomeAssistant,  # pylint: disable=unused-argument
     entry: ConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:

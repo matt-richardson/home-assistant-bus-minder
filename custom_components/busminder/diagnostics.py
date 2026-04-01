@@ -14,7 +14,9 @@ from .coordinator import BusMinderCoordinator
 TO_REDACT = {CONF_OPERATOR_URL}
 
 
-async def async_get_config_entry_diagnostics(hass: HomeAssistant, entry: ConfigEntry) -> dict[str, Any]:
+async def async_get_config_entry_diagnostics(
+    hass: HomeAssistant, entry: ConfigEntry
+) -> dict[str, Any]:  # pylint: disable=unused-argument
     """Return diagnostics for a config entry."""
     coordinator: BusMinderCoordinator = entry.runtime_data
 
