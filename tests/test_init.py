@@ -102,3 +102,4 @@ async def test_remove_config_entry_device_also_clears_options(hass: HomeAssistan
     assert 10001 not in [r["trip_id"] for r in mock_config_entry.data.get(CONF_ROUTES, [])]
     assert 10001 not in [r["trip_id"] for r in mock_config_entry.options.get(CONF_ROUTES, [])]
     assert 10002 in [r["trip_id"] for r in mock_config_entry.options[CONF_ROUTES]]
+    await hass.async_block_till_done()
