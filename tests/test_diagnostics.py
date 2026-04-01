@@ -1,5 +1,4 @@
 from datetime import datetime, timezone
-from unittest.mock import patch
 
 from homeassistant.components.diagnostics import REDACTED
 from homeassistant.core import HomeAssistant
@@ -23,16 +22,9 @@ def make_position(trip_id=10001):
 
 async def test_diagnostics_redacts_operator_url(hass: HomeAssistant, mock_config_entry):
     """operator_url is redacted in diagnostics output."""
-
-    async def empty_stream():
-        return
-        yield
-
-    with patch("custom_components.busminder.coordinator.SignalRClient") as MockClient:
-        MockClient.return_value.stream = empty_stream
-        mock_config_entry.add_to_hass(hass)
-        await hass.config_entries.async_setup(mock_config_entry.entry_id)
-        await hass.async_block_till_done()
+    mock_config_entry.add_to_hass(hass)
+    await hass.config_entries.async_setup(mock_config_entry.entry_id)
+    await hass.async_block_till_done()
 
     result = await async_get_config_entry_diagnostics(hass, mock_config_entry)
 
@@ -41,16 +33,9 @@ async def test_diagnostics_redacts_operator_url(hass: HomeAssistant, mock_config
 
 async def test_diagnostics_includes_coordinator_state(hass: HomeAssistant, mock_config_entry):
     """Diagnostics includes coordinator state."""
-
-    async def empty_stream():
-        return
-        yield
-
-    with patch("custom_components.busminder.coordinator.SignalRClient") as MockClient:
-        MockClient.return_value.stream = empty_stream
-        mock_config_entry.add_to_hass(hass)
-        await hass.config_entries.async_setup(mock_config_entry.entry_id)
-        await hass.async_block_till_done()
+    mock_config_entry.add_to_hass(hass)
+    await hass.config_entries.async_setup(mock_config_entry.entry_id)
+    await hass.async_block_till_done()
 
     result = await async_get_config_entry_diagnostics(hass, mock_config_entry)
 
@@ -62,16 +47,9 @@ async def test_diagnostics_includes_coordinator_state(hass: HomeAssistant, mock_
 
 async def test_diagnostics_includes_position_data(hass: HomeAssistant, mock_config_entry):
     """Diagnostics includes current bus positions."""
-
-    async def empty_stream():
-        return
-        yield
-
-    with patch("custom_components.busminder.coordinator.SignalRClient") as MockClient:
-        MockClient.return_value.stream = empty_stream
-        mock_config_entry.add_to_hass(hass)
-        await hass.config_entries.async_setup(mock_config_entry.entry_id)
-        await hass.async_block_till_done()
+    mock_config_entry.add_to_hass(hass)
+    await hass.config_entries.async_setup(mock_config_entry.entry_id)
+    await hass.async_block_till_done()
 
     coordinator = hass.data["busminder"][mock_config_entry.entry_id]
     coordinator.async_set_updated_data({10001: make_position(10001)})
@@ -88,16 +66,9 @@ async def test_diagnostics_includes_position_data(hass: HomeAssistant, mock_conf
 
 async def test_diagnostics_non_sensitive_fields_present(hass: HomeAssistant, mock_config_entry):
     """Non-sensitive config fields are not redacted."""
-
-    async def empty_stream():
-        return
-        yield
-
-    with patch("custom_components.busminder.coordinator.SignalRClient") as MockClient:
-        MockClient.return_value.stream = empty_stream
-        mock_config_entry.add_to_hass(hass)
-        await hass.config_entries.async_setup(mock_config_entry.entry_id)
-        await hass.async_block_till_done()
+    mock_config_entry.add_to_hass(hass)
+    await hass.config_entries.async_setup(mock_config_entry.entry_id)
+    await hass.async_block_till_done()
 
     result = await async_get_config_entry_diagnostics(hass, mock_config_entry)
 

@@ -1,3 +1,4 @@
+import asyncio
 from datetime import datetime, timedelta, timezone
 from unittest.mock import MagicMock, patch
 
@@ -21,15 +22,9 @@ def make_position(trip_id=10001, lat=-37.820, lng=145.340, last_stop_id=10001):
 
 
 async def test_sensor_unavailable_before_first_update(hass: HomeAssistant, mock_config_entry):
-    async def empty_stream():
-        return
-        yield  # make it an async generator
-
-    with patch("custom_components.busminder.coordinator.SignalRClient") as MockClient:
-        MockClient.return_value.stream = empty_stream
-        mock_config_entry.add_to_hass(hass)
-        await hass.config_entries.async_setup(mock_config_entry.entry_id)
-        await hass.async_block_till_done()
+    mock_config_entry.add_to_hass(hass)
+    await hass.config_entries.async_setup(mock_config_entry.entry_id)
+    await hass.async_block_till_done()
 
     state = hass.states.get("sensor.busminder_1001_eta")
     assert state is not None
@@ -41,8 +36,6 @@ async def test_sensor_shows_eta_minutes(hass: HomeAssistant, mock_config_entry):
 
     async def fake_stream():
         yield pos
-        import asyncio
-
         await asyncio.sleep(9999)
 
     with patch("custom_components.busminder.coordinator.SignalRClient") as MockClient:
@@ -54,8 +47,6 @@ async def test_sensor_shows_eta_minutes(hass: HomeAssistant, mock_config_entry):
             mock_config_entry.add_to_hass(hass)
             await hass.config_entries.async_setup(mock_config_entry.entry_id)
             await hass.async_block_till_done()
-            import asyncio
-
             await asyncio.sleep(0.1)
             await hass.async_block_till_done()
 
@@ -71,16 +62,9 @@ async def test_sensor_shows_eta_minutes(hass: HomeAssistant, mock_config_entry):
 
 async def test_sensor_unavailable_when_connection_failed(hass: HomeAssistant, mock_config_entry):
     """Sensor is unavailable when coordinator.connection_failed is True."""
-
-    async def empty_stream():
-        return
-        yield
-
-    with patch("custom_components.busminder.coordinator.SignalRClient") as MockClient:
-        MockClient.return_value.stream = empty_stream
-        mock_config_entry.add_to_hass(hass)
-        await hass.config_entries.async_setup(mock_config_entry.entry_id)
-        await hass.async_block_till_done()
+    mock_config_entry.add_to_hass(hass)
+    await hass.config_entries.async_setup(mock_config_entry.entry_id)
+    await hass.async_block_till_done()
 
     coordinator = hass.data["busminder"][mock_config_entry.entry_id]
     coordinator.connection_failed = True
@@ -106,15 +90,9 @@ async def test_sensor_attributes_not_running_when_stale(hass: HomeAssistant, moc
         received_at=stale_time,
     )
 
-    async def empty_stream():
-        return
-        yield
-
-    with patch("custom_components.busminder.coordinator.SignalRClient") as MockClient:
-        MockClient.return_value.stream = empty_stream
-        mock_config_entry.add_to_hass(hass)
-        await hass.config_entries.async_setup(mock_config_entry.entry_id)
-        await hass.async_block_till_done()
+    mock_config_entry.add_to_hass(hass)
+    await hass.config_entries.async_setup(mock_config_entry.entry_id)
+    await hass.async_block_till_done()
 
     coordinator = hass.data["busminder"][mock_config_entry.entry_id]
     coordinator.async_set_updated_data({10001: pos})
@@ -130,15 +108,9 @@ async def test_sensor_extra_attrs_no_position(hass: HomeAssistant, mock_config_e
     from custom_components.busminder.models import Route, Stop
     from custom_components.busminder.sensor import BusEtaSensor
 
-    async def empty_stream():
-        return
-        yield
-
-    with patch("custom_components.busminder.coordinator.SignalRClient") as MockClient:
-        MockClient.return_value.stream = empty_stream
-        mock_config_entry.add_to_hass(hass)
-        await hass.config_entries.async_setup(mock_config_entry.entry_id)
-        await hass.async_block_till_done()
+    mock_config_entry.add_to_hass(hass)
+    await hass.config_entries.async_setup(mock_config_entry.entry_id)
+    await hass.async_block_till_done()
 
     coordinator = hass.data["busminder"][mock_config_entry.entry_id]
     monitored_stop = Stop(id=10001, name="Main Gate", lat=-37.787, lng=145.339, sequence=1)
@@ -167,15 +139,9 @@ async def test_sensor_eta_minutes_returned(hass: HomeAssistant, mock_config_entr
         received_at=datetime.now(timezone.utc),
     )
 
-    async def empty_stream():
-        return
-        yield
-
-    with patch("custom_components.busminder.coordinator.SignalRClient") as MockClient:
-        MockClient.return_value.stream = empty_stream
-        mock_config_entry.add_to_hass(hass)
-        await hass.config_entries.async_setup(mock_config_entry.entry_id)
-        await hass.async_block_till_done()
+    mock_config_entry.add_to_hass(hass)
+    await hass.config_entries.async_setup(mock_config_entry.entry_id)
+    await hass.async_block_till_done()
 
     coordinator = hass.data["busminder"][mock_config_entry.entry_id]
 

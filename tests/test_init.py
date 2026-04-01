@@ -8,25 +8,16 @@ from custom_components.busminder.const import CONF_ROUTES, DOMAIN
 
 async def test_async_reload_entry(hass: HomeAssistant, mock_config_entry):
     """async_reload_entry unloads then reloads the config entry."""
-
-    async def empty_stream():
-        return
-        yield
-
-    with patch("custom_components.busminder.coordinator.SignalRClient") as MockClient:
-        MockClient.return_value.stream = empty_stream
-        mock_config_entry.add_to_hass(hass)
-        await hass.config_entries.async_setup(mock_config_entry.entry_id)
-        await hass.async_block_till_done()
+    mock_config_entry.add_to_hass(hass)
+    await hass.config_entries.async_setup(mock_config_entry.entry_id)
+    await hass.async_block_till_done()
 
     assert mock_config_entry.entry_id in hass.data[DOMAIN]
 
     from custom_components.busminder import async_reload_entry
 
-    with patch("custom_components.busminder.coordinator.SignalRClient") as MockClient2:
-        MockClient2.return_value.stream = empty_stream
-        await async_reload_entry(hass, mock_config_entry)
-        await hass.async_block_till_done()
+    await async_reload_entry(hass, mock_config_entry)
+    await hass.async_block_till_done()
 
     # Entry should still be loaded after reload
     assert mock_config_entry.entry_id in hass.data[DOMAIN]
@@ -41,16 +32,9 @@ async def test_parallel_updates_is_set(hass: HomeAssistant):
 
 async def test_update_listener_triggers_reload(hass: HomeAssistant, mock_config_entry):
     """Updating entry options triggers an entry reload."""
-
-    async def empty_stream():
-        return
-        yield
-
-    with patch("custom_components.busminder.coordinator.SignalRClient") as MockClient:
-        MockClient.return_value.stream = empty_stream
-        mock_config_entry.add_to_hass(hass)
-        await hass.config_entries.async_setup(mock_config_entry.entry_id)
-        await hass.async_block_till_done()
+    mock_config_entry.add_to_hass(hass)
+    await hass.config_entries.async_setup(mock_config_entry.entry_id)
+    await hass.async_block_till_done()
 
     reload_calls = []
 
@@ -66,16 +50,9 @@ async def test_update_listener_triggers_reload(hass: HomeAssistant, mock_config_
 
 async def test_remove_config_entry_device(hass: HomeAssistant, mock_config_entry):
     """Removing a device strips its route from config and returns True."""
-
-    async def empty_stream():
-        return
-        yield
-
-    with patch("custom_components.busminder.coordinator.SignalRClient") as MockClient:
-        MockClient.return_value.stream = empty_stream
-        mock_config_entry.add_to_hass(hass)
-        await hass.config_entries.async_setup(mock_config_entry.entry_id)
-        await hass.async_block_till_done()
+    mock_config_entry.add_to_hass(hass)
+    await hass.config_entries.async_setup(mock_config_entry.entry_id)
+    await hass.async_block_till_done()
 
     # Find the device for trip_id 10001
     dev_reg = dr.async_get(hass)
@@ -94,16 +71,9 @@ async def test_remove_config_entry_device(hass: HomeAssistant, mock_config_entry
 
 async def test_remove_config_entry_device_also_clears_options(hass: HomeAssistant, mock_config_entry):
     """Removing a device clears the route from entry.options too, so it won't reappear in the options flow."""
-
-    async def empty_stream():
-        return
-        yield
-
-    with patch("custom_components.busminder.coordinator.SignalRClient") as MockClient:
-        MockClient.return_value.stream = empty_stream
-        mock_config_entry.add_to_hass(hass)
-        await hass.config_entries.async_setup(mock_config_entry.entry_id)
-        await hass.async_block_till_done()
+    mock_config_entry.add_to_hass(hass)
+    await hass.config_entries.async_setup(mock_config_entry.entry_id)
+    await hass.async_block_till_done()
 
     # Simulate a previous options flow run that stored routes in entry.options
     hass.config_entries.async_update_entry(

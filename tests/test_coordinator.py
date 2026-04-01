@@ -107,21 +107,13 @@ async def test_connection_failed_flag_set_after_three_failures(hass: HomeAssista
 
 async def test_connection_failed_clears_on_position(hass: HomeAssistant, mock_config_entry):
     """connection_failed clears when a valid position arrives."""
-    from datetime import datetime, timezone
-
     from homeassistant.helpers import issue_registry as ir
 
     from custom_components.busminder.models import BusPosition
 
-    async def empty_stream():
-        return
-        yield
-
-    with patch("custom_components.busminder.coordinator.SignalRClient") as MockClient:
-        MockClient.return_value.stream = empty_stream
-        mock_config_entry.add_to_hass(hass)
-        await hass.config_entries.async_setup(mock_config_entry.entry_id)
-        await hass.async_block_till_done()
+    mock_config_entry.add_to_hass(hass)
+    await hass.config_entries.async_setup(mock_config_entry.entry_id)
+    await hass.async_block_till_done()
 
     coordinator = hass.data["busminder"][mock_config_entry.entry_id]
     # Manually set the failed state

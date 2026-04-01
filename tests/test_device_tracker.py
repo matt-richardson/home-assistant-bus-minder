@@ -1,3 +1,4 @@
+import asyncio
 from datetime import datetime, timezone
 from unittest.mock import patch
 
@@ -22,15 +23,9 @@ def make_position(trip_id=10001, lat=-37.820, lng=145.340):
 
 
 async def test_device_tracker_registered(hass: HomeAssistant, mock_config_entry):
-    async def empty_stream():
-        return
-        yield
-
-    with patch("custom_components.busminder.coordinator.SignalRClient") as MockClient:
-        MockClient.return_value.stream = empty_stream
-        mock_config_entry.add_to_hass(hass)
-        await hass.config_entries.async_setup(mock_config_entry.entry_id)
-        await hass.async_block_till_done()
+    mock_config_entry.add_to_hass(hass)
+    await hass.config_entries.async_setup(mock_config_entry.entry_id)
+    await hass.async_block_till_done()
 
     assert hass.states.get("device_tracker.busminder_1001") is not None
     assert hass.states.get("device_tracker.busminder_1002") is not None
@@ -41,8 +36,6 @@ async def test_device_tracker_registered(hass: HomeAssistant, mock_config_entry)
 async def test_device_tracker_source_type(hass: HomeAssistant, mock_config_entry):
     async def fake_stream():
         yield make_position()
-        import asyncio
-
         await asyncio.sleep(9999)
 
     with patch("custom_components.busminder.coordinator.SignalRClient") as MockClient:
@@ -50,8 +43,6 @@ async def test_device_tracker_source_type(hass: HomeAssistant, mock_config_entry
         mock_config_entry.add_to_hass(hass)
         await hass.config_entries.async_setup(mock_config_entry.entry_id)
         await hass.async_block_till_done()
-        import asyncio
-
         await asyncio.sleep(0.1)
         await hass.async_block_till_done()
 
@@ -62,16 +53,9 @@ async def test_device_tracker_source_type(hass: HomeAssistant, mock_config_entry
 
 async def test_device_tracker_unavailable_when_connection_failed(hass: HomeAssistant, mock_config_entry):
     """Device tracker is unavailable when coordinator.connection_failed is True."""
-
-    async def empty_stream():
-        return
-        yield
-
-    with patch("custom_components.busminder.coordinator.SignalRClient") as MockClient:
-        MockClient.return_value.stream = empty_stream
-        mock_config_entry.add_to_hass(hass)
-        await hass.config_entries.async_setup(mock_config_entry.entry_id)
-        await hass.async_block_till_done()
+    mock_config_entry.add_to_hass(hass)
+    await hass.config_entries.async_setup(mock_config_entry.entry_id)
+    await hass.async_block_till_done()
 
     coordinator = hass.data["busminder"][mock_config_entry.entry_id]
     coordinator.connection_failed = True
