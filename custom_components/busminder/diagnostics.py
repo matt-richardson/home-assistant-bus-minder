@@ -8,7 +8,7 @@ from homeassistant.components.diagnostics import async_redact_data
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 
-from .const import CONF_OPERATOR_URL, DOMAIN
+from .const import CONF_OPERATOR_URL
 from .coordinator import BusMinderCoordinator
 
 TO_REDACT = {CONF_OPERATOR_URL}
@@ -16,7 +16,7 @@ TO_REDACT = {CONF_OPERATOR_URL}
 
 async def async_get_config_entry_diagnostics(hass: HomeAssistant, entry: ConfigEntry) -> dict[str, Any]:
     """Return diagnostics for a config entry."""
-    coordinator: BusMinderCoordinator = hass.data[DOMAIN][entry.entry_id]
+    coordinator: BusMinderCoordinator = entry.runtime_data
 
     positions: dict[int, dict[str, Any]] = {}
     for trip_id, pos in (coordinator.data or {}).items():

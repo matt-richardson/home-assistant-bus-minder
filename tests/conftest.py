@@ -1,5 +1,5 @@
 import asyncio
-from unittest.mock import patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
@@ -32,15 +32,28 @@ def mock_coordinator_signalr():
     'async for' loop and never hits the retry/backoff path (which would cause
     tests to hang waiting for asyncio.sleep(5+) between retries).
 
-    Tests that need specific stream behaviour can override SignalRClient inside
-    their own patch context.
+    Also mocks async_get_clientsession so coordinator.async_start()'s connection
+    test always succeeds without making real HTTP requests.
+
+    Tests that need specific stream or session behaviour can override the
+    relevant patches inside their own context.
     """
 
     async def _hold_open():
         await asyncio.sleep(999999)
         yield  # never reached — makes this an async generator
 
-    with patch("custom_components.busminder.coordinator.SignalRClient") as mock_client:
+    mock_resp = MagicMock()
+    mock_resp.raise_for_status = MagicMock()
+    mock_resp.__aenter__ = AsyncMock(return_value=mock_resp)
+    mock_resp.__aexit__ = AsyncMock(return_value=False)
+    mock_session = MagicMock()
+    mock_session.get = MagicMock(return_value=mock_resp)
+
+    with patch(
+        "custom_components.busminder.coordinator.async_get_clientsession",
+        return_value=mock_session,
+    ), patch("custom_components.busminder.coordinator.SignalRClient") as mock_client:
         mock_client.return_value.stream = _hold_open
         yield mock_client
 

@@ -66,7 +66,7 @@ async def test_sensor_unavailable_when_connection_failed(hass: HomeAssistant, mo
     await hass.config_entries.async_setup(mock_config_entry.entry_id)
     await hass.async_block_till_done()
 
-    coordinator = hass.data["busminder"][mock_config_entry.entry_id]
+    coordinator = mock_config_entry.runtime_data
     coordinator.connection_failed = True
     coordinator.async_set_updated_data({10001: make_position()})
     await hass.async_block_till_done()
@@ -94,7 +94,7 @@ async def test_sensor_attributes_not_running_when_stale(hass: HomeAssistant, moc
     await hass.config_entries.async_setup(mock_config_entry.entry_id)
     await hass.async_block_till_done()
 
-    coordinator = hass.data["busminder"][mock_config_entry.entry_id]
+    coordinator = mock_config_entry.runtime_data
     coordinator.async_set_updated_data({10001: pos})
     await hass.async_block_till_done()
 
@@ -112,7 +112,7 @@ async def test_sensor_extra_attrs_no_position(hass: HomeAssistant, mock_config_e
     await hass.config_entries.async_setup(mock_config_entry.entry_id)
     await hass.async_block_till_done()
 
-    coordinator = hass.data["busminder"][mock_config_entry.entry_id]
+    coordinator = mock_config_entry.runtime_data
     monitored_stop = Stop(id=10001, name="Main Gate", lat=-37.787, lng=145.339, sequence=1)
     route = Route(trip_id=10001, name="Test", route_number="1001", colour="", stops=[monitored_stop])
     sensor = BusEtaSensor(coordinator, mock_config_entry, route, monitored_stop)
@@ -143,7 +143,7 @@ async def test_sensor_eta_minutes_returned(hass: HomeAssistant, mock_config_entr
     await hass.config_entries.async_setup(mock_config_entry.entry_id)
     await hass.async_block_till_done()
 
-    coordinator = hass.data["busminder"][mock_config_entry.entry_id]
+    coordinator = mock_config_entry.runtime_data
 
     entity_id = "sensor.busminder_1001_eta"
 
@@ -166,7 +166,7 @@ async def test_each_sensor_gets_its_own_stop(hass: HomeAssistant, mock_config_en
     # Stub the coordinator directly — coordinator.py still reads old stop keys (fixed in Task 2)
     mock_coordinator = MagicMock()
     mock_config_entry.add_to_hass(hass)
-    hass.data.setdefault("busminder", {})[mock_config_entry.entry_id] = mock_coordinator
+    mock_config_entry.runtime_data = mock_coordinator
 
     # Call async_setup_entry with a capturing add_entities callback
     add_entities = MagicMock()

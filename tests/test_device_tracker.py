@@ -57,7 +57,7 @@ async def test_device_tracker_unavailable_when_connection_failed(hass: HomeAssis
     await hass.config_entries.async_setup(mock_config_entry.entry_id)
     await hass.async_block_till_done()
 
-    coordinator = hass.data["busminder"][mock_config_entry.entry_id]
+    coordinator = mock_config_entry.runtime_data
     coordinator.connection_failed = True
     coordinator.async_set_updated_data({10001: make_position()})
     await hass.async_block_till_done()

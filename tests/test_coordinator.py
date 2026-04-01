@@ -1,7 +1,9 @@
 import asyncio
 from datetime import datetime, timedelta, timezone
-from unittest.mock import patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
+import aiohttp
+from homeassistant.config_entries import ConfigEntryState
 from homeassistant.core import HomeAssistant
 from homeassistant.util.dt import utcnow
 from pytest_homeassistant_custom_component.common import async_fire_time_changed
@@ -101,7 +103,7 @@ async def test_connection_failed_flag_set_after_three_failures(hass: HomeAssista
             async_fire_time_changed(hass, utcnow() + timedelta(hours=1), fire_all=True)
             await hass.async_block_till_done()
 
-    coordinator = hass.data["busminder"][mock_config_entry.entry_id]
+    coordinator = mock_config_entry.runtime_data
     assert coordinator.connection_failed is True
 
 
@@ -115,7 +117,7 @@ async def test_connection_failed_clears_on_position(hass: HomeAssistant, mock_co
     await hass.config_entries.async_setup(mock_config_entry.entry_id)
     await hass.async_block_till_done()
 
-    coordinator = hass.data["busminder"][mock_config_entry.entry_id]
+    coordinator = mock_config_entry.runtime_data
     # Manually set the failed state
     coordinator.connection_failed = True
     coordinator._failure_count = 3
@@ -146,3 +148,23 @@ async def test_connection_failed_clears_on_position(hass: HomeAssistant, mock_co
     assert coordinator._failure_count == 0
     issue_reg = ir.async_get(hass)
     assert issue_reg.async_get_issue("busminder", "connection_failed") is None
+
+
+async def test_config_entry_not_ready_when_unreachable(hass: HomeAssistant, mock_config_entry):
+    """ConfigEntryNotReady is raised when the operator URL is unreachable at setup."""
+    mock_resp = MagicMock()
+    mock_resp.raise_for_status.side_effect = aiohttp.ClientConnectionError("Cannot connect")
+    mock_resp.__aenter__ = AsyncMock(return_value=mock_resp)
+    mock_resp.__aexit__ = AsyncMock(return_value=False)
+    mock_session = MagicMock()
+    mock_session.get = MagicMock(return_value=mock_resp)
+
+    with patch(
+        "custom_components.busminder.coordinator.async_get_clientsession",
+        return_value=mock_session,
+    ):
+        mock_config_entry.add_to_hass(hass)
+        await hass.config_entries.async_setup(mock_config_entry.entry_id)
+        await hass.async_block_till_done()
+
+    assert mock_config_entry.state == ConfigEntryState.SETUP_RETRY

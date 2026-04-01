@@ -4,10 +4,11 @@ import asyncio
 import logging
 from typing import Optional
 
-import aiohttp
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers import issue_registry as ir
+from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.issue_registry import IssueSeverity
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
@@ -54,8 +55,17 @@ class BusMinderCoordinator(DataUpdateCoordinator[dict[int, BusPosition]]):
         self.etas: dict[int, Optional[float]] = {}  # trip_id → minutes or None
 
     async def async_start(self) -> None:
-        """Start one background SSE task per unique route group UUID."""
+        """Test connectivity then start one background SSE task per unique route group UUID."""
         effective = {**self._entry.data, **self._entry.options}
+        operator_url = effective.get(CONF_OPERATOR_URL, "")
+        session = async_get_clientsession(self.hass)
+        try:
+            async with asyncio.timeout(10):
+                async with session.get(operator_url) as resp:
+                    resp.raise_for_status()
+        except Exception as exc:
+            raise ConfigEntryNotReady(f"Cannot reach {operator_url}: {exc}") from exc
+
         fallback_uuid = effective.get(CONF_ROUTE_GROUP_UUID, "")
         uuids = {
             r.get("uuid") or fallback_uuid for r in effective.get(CONF_ROUTES, []) if r.get("uuid") or fallback_uuid
@@ -78,16 +88,16 @@ class BusMinderCoordinator(DataUpdateCoordinator[dict[int, BusPosition]]):
         """Maintain the SSE connection for one route group UUID, reconnecting on error."""
         effective = {**self._entry.data, **self._entry.options}
         operator_url = effective.get(CONF_OPERATOR_URL, uuid)
+        session = async_get_clientsession(self.hass)
         backoff = 5
         while True:
             try:
-                async with aiohttp.ClientSession() as session:
-                    client = SignalRClient(session, uuid)
-                    _LOGGER.info("BusMinder: connecting to route group %s", uuid)
-                    async for position in client.stream():
-                        self._on_position(position)
-                    # Stream ended cleanly — treat as a transient failure to reconnect
-                    raise RuntimeError("SSE stream ended unexpectedly")
+                client = SignalRClient(session, uuid)
+                _LOGGER.info("BusMinder: connecting to route group %s", uuid)
+                async for position in client.stream():
+                    self._on_position(position)
+                # Stream ended cleanly — treat as a transient failure to reconnect
+                raise RuntimeError("SSE stream ended unexpectedly")
             except asyncio.CancelledError:  # pylint: disable=try-except-raise
                 raise
             except Exception as exc:  # pylint: disable=broad-exception-caught
@@ -101,6 +111,11 @@ class BusMinderCoordinator(DataUpdateCoordinator[dict[int, BusPosition]]):
                 if self._failure_count >= RECONNECT_THRESHOLD and not self.connection_failed:
                     self.connection_failed = True
                     self.async_update_listeners()
+                    _LOGGER.warning(
+                        "BusMinder: lost connection to %s after %d attempts, entities now unavailable",
+                        operator_url,
+                        self._failure_count,
+                    )
                     ir.async_create_issue(
                         self.hass,
                         DOMAIN,

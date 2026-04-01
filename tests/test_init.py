@@ -1,5 +1,6 @@
 from unittest.mock import patch
 
+from homeassistant.config_entries import ConfigEntryState
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import device_registry as dr
 
@@ -12,7 +13,7 @@ async def test_async_reload_entry(hass: HomeAssistant, mock_config_entry):
     await hass.config_entries.async_setup(mock_config_entry.entry_id)
     await hass.async_block_till_done()
 
-    assert mock_config_entry.entry_id in hass.data[DOMAIN]
+    assert mock_config_entry.state == ConfigEntryState.LOADED
 
     from custom_components.busminder import async_reload_entry
 
@@ -20,7 +21,7 @@ async def test_async_reload_entry(hass: HomeAssistant, mock_config_entry):
     await hass.async_block_till_done()
 
     # Entry should still be loaded after reload
-    assert mock_config_entry.entry_id in hass.data[DOMAIN]
+    assert mock_config_entry.state == ConfigEntryState.LOADED
 
 
 async def test_parallel_updates_is_set(hass: HomeAssistant):

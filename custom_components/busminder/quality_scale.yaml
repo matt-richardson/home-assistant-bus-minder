@@ -1,0 +1,33 @@
+rules:
+  # Bronze
+  action-setup: exempt # No custom actions defined
+  appropriate-polling: exempt # Push-based (iot_class: cloud_push), no polling
+  brands: todo # Not yet submitted to the HA brands repository
+  common-modules: done
+  config-flow: done
+  config-flow-test-coverage: done
+  dependency-transparency: done
+  docs-actions: exempt # No custom actions defined
+  docs-high-level-description: done
+  docs-installation-instructions: done
+  docs-removal-instructions: exempt # Standard HA device removal is sufficient
+  entity-event-setup: exempt # Uses DataUpdateCoordinator, no direct event subscriptions
+  entity-unique-id: done
+  has-entity-name: done
+  runtime-data: done
+  test-before-setup: done
+  unique-config-entry: done
+  # Silver
+  action-exceptions: exempt # No custom actions defined
+  config-entry-unloading: done
+  devices: done
+  diagnostics: done
+  discovery-update-info: exempt # No discovery mechanism
+  docs-configuration-parameters: done
+  docs-installation-parameters: done
+  entity-unavailable: done
+  integration-owner: done
+  log-when-unavailable: done
+  parallel-updates: done
+  reauthentication-flow: exempt # No authentication credentials
+  test-coverage: done

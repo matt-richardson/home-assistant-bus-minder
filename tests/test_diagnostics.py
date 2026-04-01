@@ -51,7 +51,7 @@ async def test_diagnostics_includes_position_data(hass: HomeAssistant, mock_conf
     await hass.config_entries.async_setup(mock_config_entry.entry_id)
     await hass.async_block_till_done()
 
-    coordinator = hass.data["busminder"][mock_config_entry.entry_id]
+    coordinator = mock_config_entry.runtime_data
     coordinator.async_set_updated_data({10001: make_position(10001)})
     await hass.async_block_till_done()
 

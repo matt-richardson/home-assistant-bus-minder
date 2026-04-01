@@ -10,7 +10,7 @@ from homeassistant.const import UnitOfTime
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from .const import CONF_ROUTES, DOMAIN
+from .const import CONF_ROUTES
 from .coordinator import BusMinderCoordinator
 from .entity import BusMinderEntity
 from .eta import estimate_eta
@@ -28,7 +28,7 @@ async def async_setup_entry(
     entry: ConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
-    coordinator: BusMinderCoordinator = hass.data[DOMAIN][entry.entry_id]
+    coordinator: BusMinderCoordinator = entry.runtime_data
 
     effective = {**entry.data, **entry.options}
 
