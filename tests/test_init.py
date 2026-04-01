@@ -67,6 +67,9 @@ async def test_remove_config_entry_device(hass: HomeAssistant, mock_config_entry
     remaining = [r["trip_id"] for r in mock_config_entry.data[CONF_ROUTES]]
     assert 10001 not in remaining
     assert 10002 in remaining
+    # Drain the reload triggered by async_update_entry so it runs while patches
+    # are still active (prevents real aiohttp.ClientSession during hass teardown).
+    await hass.async_block_till_done()
 
 
 async def test_remove_config_entry_device_also_clears_options(hass: HomeAssistant, mock_config_entry):
