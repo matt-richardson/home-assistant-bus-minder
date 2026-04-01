@@ -1,8 +1,10 @@
 import asyncio
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from unittest.mock import patch
 
 from homeassistant.core import HomeAssistant
+from homeassistant.util.dt import utcnow
+from pytest_homeassistant_custom_component.common import async_fire_time_changed
 
 from custom_components.busminder.coordinator import BusMinderCoordinator
 from custom_components.busminder.models import BusPosition
@@ -66,22 +68,18 @@ async def test_repair_issue_raised_after_three_failures(hass: HomeAssistant, moc
     """Repair issue is created after RECONNECT_THRESHOLD consecutive SSE failures."""
     from homeassistant.helpers import issue_registry as ir
 
-    call_count = 0
-
     async def failing_stream():
-        nonlocal call_count
-        call_count += 1
         raise Exception("SSE connection lost")
         yield  # make it an async generator
 
     with patch("custom_components.busminder.coordinator.SignalRClient") as MockClient:
-        with patch("custom_components.busminder.coordinator.asyncio.sleep"):
-            MockClient.return_value.stream = failing_stream
-            mock_config_entry.add_to_hass(hass)
-            await hass.config_entries.async_setup(mock_config_entry.entry_id)
-            # Let several reconnect cycles run
-            for _ in range(10):
-                await hass.async_block_till_done()
+        MockClient.return_value.stream = failing_stream
+        mock_config_entry.add_to_hass(hass)
+        await hass.config_entries.async_setup(mock_config_entry.entry_id)
+        # Drive several reconnect cycles by advancing virtual time past each backoff sleep
+        for _ in range(5):
+            async_fire_time_changed(hass, utcnow() + timedelta(hours=1), fire_all=True)
+            await hass.async_block_till_done()
 
     issue_reg = ir.async_get(hass)
     issue = issue_reg.async_get_issue("busminder", "connection_failed")
@@ -96,12 +94,12 @@ async def test_connection_failed_flag_set_after_three_failures(hass: HomeAssista
         yield
 
     with patch("custom_components.busminder.coordinator.SignalRClient") as MockClient:
-        with patch("custom_components.busminder.coordinator.asyncio.sleep"):
-            MockClient.return_value.stream = failing_stream
-            mock_config_entry.add_to_hass(hass)
-            await hass.config_entries.async_setup(mock_config_entry.entry_id)
-            for _ in range(10):
-                await hass.async_block_till_done()
+        MockClient.return_value.stream = failing_stream
+        mock_config_entry.add_to_hass(hass)
+        await hass.config_entries.async_setup(mock_config_entry.entry_id)
+        for _ in range(5):
+            async_fire_time_changed(hass, utcnow() + timedelta(hours=1), fire_all=True)
+            await hass.async_block_till_done()
 
     coordinator = hass.data["busminder"][mock_config_entry.entry_id]
     assert coordinator.connection_failed is True
