@@ -41,30 +41,30 @@ def make_position(trip_id=10001, lat=-37.770, lng=145.320, last_stop_id=10000):
     )
 
 
-# --- stops_to_stop sensor ---
+# --- stops_away sensor ---
 
 
-async def test_stops_to_stop_sensor_registered(hass: HomeAssistant, mock_config_entry):
-    """A stops_to_stop sensor is registered for each monitored route."""
+async def test_stops_away_sensor_registered(hass: HomeAssistant, mock_config_entry):
+    """A stops_away sensor is registered for each monitored route."""
     mock_config_entry.add_to_hass(hass)
     await hass.config_entries.async_setup(mock_config_entry.entry_id)
     await hass.async_block_till_done()
 
-    assert hass.states.get("sensor.busminder_1001_stops_to_stop") is not None
-    assert hass.states.get("sensor.busminder_1002_stops_to_stop") is not None
+    assert hass.states.get("sensor.busminder_1001_stops_away") is not None
+    assert hass.states.get("sensor.busminder_1002_stops_away") is not None
 
 
-async def test_stops_to_stop_unavailable_before_first_update(hass: HomeAssistant, mock_config_entry):
-    """stops_to_stop sensor is unavailable before any position data arrives."""
+async def test_stops_away_unavailable_before_first_update(hass: HomeAssistant, mock_config_entry):
+    """stops_away sensor is unavailable before any position data arrives."""
     mock_config_entry.add_to_hass(hass)
     await hass.config_entries.async_setup(mock_config_entry.entry_id)
     await hass.async_block_till_done()
 
-    assert hass.states.get("sensor.busminder_1001_stops_to_stop").state == STATE_UNAVAILABLE
+    assert hass.states.get("sensor.busminder_1001_stops_away").state == STATE_UNAVAILABLE
 
 
-async def test_stops_to_stop_shows_count(hass: HomeAssistant, mock_config_entry):
-    """stops_to_stop returns the number of stops between bus and monitored stop (inclusive)."""
+async def test_stops_away_shows_count(hass: HomeAssistant, mock_config_entry):
+    """stops_away returns the number of stops between bus and monitored stop (inclusive)."""
     with patch(
         "custom_components.busminder.coordinator.fetch_route_group_by_uuid",
         new=AsyncMock(return_value=_route_group_with_stops()),
@@ -78,13 +78,13 @@ async def test_stops_to_stop_shows_count(hass: HomeAssistant, mock_config_entry)
     coordinator.async_set_updated_data({10001: make_position(last_stop_id=10000)})
     await hass.async_block_till_done()
 
-    state = hass.states.get("sensor.busminder_1001_stops_to_stop")
+    state = hass.states.get("sensor.busminder_1001_stops_away")
     assert state is not None
     assert state.state == "1"
 
 
-async def test_stops_to_stop_unknown_when_bus_passed(hass: HomeAssistant, mock_config_entry):
-    """stops_to_stop returns unknown once the bus has passed the monitored stop."""
+async def test_stops_away_unknown_when_bus_passed(hass: HomeAssistant, mock_config_entry):
+    """stops_away returns unknown once the bus has passed the monitored stop."""
     with patch(
         "custom_components.busminder.coordinator.fetch_route_group_by_uuid",
         new=AsyncMock(return_value=_route_group_with_stops()),
@@ -98,13 +98,13 @@ async def test_stops_to_stop_unknown_when_bus_passed(hass: HomeAssistant, mock_c
     coordinator.async_set_updated_data({10001: make_position(last_stop_id=10001)})
     await hass.async_block_till_done()
 
-    state = hass.states.get("sensor.busminder_1001_stops_to_stop")
+    state = hass.states.get("sensor.busminder_1001_stops_away")
     assert state is not None
     assert state.state == "unknown"
 
 
-async def test_stops_to_stop_unavailable_when_connection_failed(hass: HomeAssistant, mock_config_entry):
-    """stops_to_stop sensor is unavailable when coordinator.connection_failed is True."""
+async def test_stops_away_unavailable_when_connection_failed(hass: HomeAssistant, mock_config_entry):
+    """stops_away sensor is unavailable when coordinator.connection_failed is True."""
     mock_config_entry.add_to_hass(hass)
     await hass.config_entries.async_setup(mock_config_entry.entry_id)
     await hass.async_block_till_done()
@@ -114,7 +114,7 @@ async def test_stops_to_stop_unavailable_when_connection_failed(hass: HomeAssist
     coordinator.async_set_updated_data({10001: make_position()})
     await hass.async_block_till_done()
 
-    assert hass.states.get("sensor.busminder_1001_stops_to_stop").state == STATE_UNAVAILABLE
+    assert hass.states.get("sensor.busminder_1001_stops_away").state == STATE_UNAVAILABLE
 
 
 # --- distance sensor ---

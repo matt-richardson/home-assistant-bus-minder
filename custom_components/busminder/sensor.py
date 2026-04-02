@@ -155,7 +155,7 @@ class BusNextStopSensor(BusMinderEntity, SensorEntity):
 
 class BusStopsToStopSensor(BusMinderEntity, SensorEntity):
     _attr_state_class = SensorStateClass.MEASUREMENT
-    _attr_translation_key = "stops_to_stop"
+    _attr_translation_key = "stops_away"
 
     def __init__(
         self,
@@ -167,8 +167,8 @@ class BusStopsToStopSensor(BusMinderEntity, SensorEntity):
         super().__init__(coordinator, entry, route.trip_id, route.route_number, route.name)
         self._route = route
         self._monitored_stop = monitored_stop
-        self._attr_unique_id = f"{entry.entry_id}_{route.trip_id}_stops_to_stop"
-        self.entity_id = f"sensor.busminder_{route.route_number.lower()}_stops_to_stop"
+        self._attr_unique_id = f"{entry.entry_id}_{route.trip_id}_stops_away"
+        self.entity_id = f"sensor.busminder_{route.route_number.lower()}_stops_away"
 
     @property
     def native_value(self) -> Optional[int]:
