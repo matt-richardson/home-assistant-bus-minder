@@ -37,6 +37,7 @@ class BusMinderCoordinator(DataUpdateCoordinator[dict[int, BusPosition]]):
         self._sse_tasks: list[asyncio.Task] = []
         self._speed_tracker = SpeedTracker()
         self._failure_count: int = 0
+        self.is_connected: bool = True
         self.connection_failed: bool = False
 
         effective = {**entry.data, **entry.options}
@@ -92,6 +93,7 @@ class BusMinderCoordinator(DataUpdateCoordinator[dict[int, BusPosition]]):
         """Force-reconnect: cancel current SSE tasks and restart them."""
         await self._cancel_sse_tasks()
 
+        self.is_connected = False
         self.connection_failed = False
         self._failure_count = 0
         self.async_update_listeners()
@@ -135,6 +137,9 @@ class BusMinderCoordinator(DataUpdateCoordinator[dict[int, BusPosition]]):
             except asyncio.CancelledError:  # pylint: disable=try-except-raise
                 raise
             except Exception as exc:  # pylint: disable=broad-exception-caught
+                if self.is_connected:
+                    self.is_connected = False
+                    self.async_update_listeners()
                 self._failure_count += 1
                 _LOGGER.warning(
                     "BusMinder SSE error (attempt %d, reconnecting in %ds): %s",
@@ -167,6 +172,9 @@ class BusMinderCoordinator(DataUpdateCoordinator[dict[int, BusPosition]]):
             return
 
         # Reset failure tracking on successful data
+        if not self.is_connected:
+            self.is_connected = True
+            self.async_update_listeners()
         if self.connection_failed:
             self.connection_failed = False
             self._failure_count = 0

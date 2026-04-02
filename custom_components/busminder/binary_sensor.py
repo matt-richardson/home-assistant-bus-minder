@@ -46,7 +46,7 @@ class BusConnectedSensor(BusMinderEntity, BinarySensorEntity):
 
     @property
     def is_on(self) -> bool:
-        return not self.coordinator.connection_failed
+        return self.coordinator.is_connected
 
     @property
     def available(self) -> bool:
