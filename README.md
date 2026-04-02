@@ -16,11 +16,16 @@ Track live school bus arrival times and GPS positions from [BusMinder](https://b
 ## Features
 
 - **ETA sensor** — minutes until the bus arrives at your stop
+- **Next stop sensor** — name of the stop the bus is currently heading to
+- **Stops away sensor** — number of stops between the bus and your stop
+- **Distance sensor** — along-route distance (km) from the bus to your stop
 - **Device tracker** — live GPS position on the Home Assistant map
+- **Custom names** — label routes and stops with your own names
 - **Device grouping** — one device per route in Settings → Devices & Services
 - **Options flow** — reconfigure operator URL, routes, and stop at any time
 - **Repair issues** — notified in HA UI when the live feed is persistently unavailable
 - **Diagnostics** — downloadable diagnostics from the HA UI
+- **Reconnect service** — force an immediate SSE reconnect via `busminder.reconnect`
 
 ## Requirements
 
@@ -47,7 +52,8 @@ Track live school bus arrival times and GPS positions from [BusMinder](https://b
 2. Search for **BusMinder**
 3. Enter your operator's live tracking URL (e.g. `https://your-operator.com.au/live-tracking/your-school/`)
 4. Select the routes you want to monitor
-5. Select your stop
+5. Select your stop for each route
+6. Optionally enter a custom route name and stop name
 
 ### Reconfiguration
 
@@ -59,11 +65,14 @@ To change the URL, routes, or stop after setup:
 
 ## Entities
 
-Each monitored route creates a **device** in Home Assistant with two entities:
+Each monitored route creates a **device** in Home Assistant with the following entities:
 
 | Entity | Type | Description |
 |--------|------|-------------|
 | `sensor.busminder_{route}_eta` | Sensor | Minutes until bus arrives at your stop |
+| `sensor.busminder_{route}_next_stop` | Sensor | Name of the stop the bus is heading to next |
+| `sensor.busminder_{route}_stops_away` | Sensor | Number of stops between bus and your stop |
+| `sensor.busminder_{route}_distance` | Sensor | Along-route distance (km) to your stop |
 | `device_tracker.busminder_{route}` | Device Tracker | Live GPS position |
 
 ### ETA Sensor Attributes
@@ -75,6 +84,12 @@ Each monitored route creates a **device** in Home Assistant with two entities:
 | `latitude` | Current bus latitude |
 | `longitude` | Current bus longitude |
 | `last_updated` | ISO timestamp of last GPS update |
+
+## Services
+
+| Service | Description |
+|---------|-------------|
+| `busminder.reconnect` | Force all BusMinder entries to drop and immediately re-establish their SSE connections. Useful if the feed has stalled without triggering a repair notification. |
 
 ## Troubleshooting
 
@@ -127,7 +142,7 @@ source venv/bin/activate
 
 This project uses [Conventional Commits](https://www.conventionalcommits.org/):
 
-```
+```text
 feat: add something new
 fix: fix a bug
 chore: tooling, deps, CI changes
