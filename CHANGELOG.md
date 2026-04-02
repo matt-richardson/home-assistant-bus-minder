@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.1.0](https://github.com/matt-richardson/home-assistant-bus-minder/compare/v1.0.0...v1.1.0) (2026-04-02)
+
+
+### Features
+
+* add connectivity binary sensor per route ([e868abc](https://github.com/matt-richardson/home-assistant-bus-minder/commit/e868abcbba72130acd348645e6808e86a6be8b83))
+
+
+### Bug Fixes
+
+* base connected sensor on SSE stream initialization, not position receipt ([365ebf3](https://github.com/matt-richardson/home-assistant-bus-minder/commit/365ebf380e82da6704b7c42707e33bd84a5937c2))
+* flip connected sensor off on first SSE failure, not after threshold ([c6e989f](https://github.com/matt-richardson/home-assistant-bus-minder/commit/c6e989fe3c804e18784cabd6ec9a3f53100512b2))
+* use full route stop list for ETA calculation ([4e9d602](https://github.com/matt-richardson/home-assistant-bus-minder/commit/4e9d6023538631254de6d5df6d9cb73aa76b9a93))
+
 ## 1.0.0 (2026-04-02)
 
 First stable release. Covers everything from the initial proof-of-concept through Silver IQS compliance and a full set of proximity sensors.
