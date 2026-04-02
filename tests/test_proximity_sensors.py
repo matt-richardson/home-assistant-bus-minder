@@ -139,8 +139,8 @@ async def test_distance_sensor_unavailable_before_first_update(hass: HomeAssista
     assert hass.states.get("sensor.busminder_1001_distance").state == STATE_UNAVAILABLE
 
 
-async def test_distance_sensor_shows_km(hass: HomeAssistant, mock_config_entry):
-    """Distance sensor shows straight-line km from bus to monitored stop."""
+async def test_distance_sensor_shows_km_fallback(hass: HomeAssistant, mock_config_entry):
+    """Distance sensor falls back to straight-line km when route metadata is unavailable."""
     mock_config_entry.add_to_hass(hass)
     await hass.config_entries.async_setup(mock_config_entry.entry_id)
     await hass.async_block_till_done()
@@ -148,6 +148,27 @@ async def test_distance_sensor_shows_km(hass: HomeAssistant, mock_config_entry):
     coordinator = mock_config_entry.runtime_data
     # Bus at (-37.820, 145.340); monitored stop for route 10001 is (-37.7877, 145.33912)
     coordinator.async_set_updated_data({10001: make_position(lat=-37.820, lng=145.340)})
+    await hass.async_block_till_done()
+
+    state = hass.states.get("sensor.busminder_1001_distance")
+    assert state is not None
+    assert state.state != STATE_UNAVAILABLE
+    assert float(state.state) > 0
+
+
+async def test_distance_sensor_uses_route_following(hass: HomeAssistant, mock_config_entry):
+    """Distance sensor uses along-route distance when route metadata is available."""
+    with patch(
+        "custom_components.busminder.coordinator.fetch_route_group_by_uuid",
+        new=AsyncMock(return_value=_route_group_with_stops()),
+    ):
+        mock_config_entry.add_to_hass(hass)
+        await hass.config_entries.async_setup(mock_config_entry.entry_id)
+        await hass.async_block_till_done()
+
+    coordinator = mock_config_entry.runtime_data
+    # Bus at Depot (just passed stop 10000); monitored stop is Main Gate (10001)
+    coordinator.async_set_updated_data({10001: make_position(lat=-37.760, lng=145.310, last_stop_id=10000)})
     await hass.async_block_till_done()
 
     state = hass.states.get("sensor.busminder_1001_distance")

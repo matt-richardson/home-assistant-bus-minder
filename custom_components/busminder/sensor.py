@@ -214,7 +214,11 @@ class BusDistanceSensor(BusMinderEntity, SensorEntity):
         pos = self._get_position()
         if pos is None:
             return None
-        return round(haversine_km(pos.lat, pos.lng, self._monitored_stop.lat, self._monitored_stop.lng), 2)
+        distance = self.coordinator.get_route_distance_km(self._route.trip_id, pos, self._monitored_stop)
+        if distance is None:
+            # Fall back to straight-line distance when route metadata is unavailable
+            distance = haversine_km(pos.lat, pos.lng, self._monitored_stop.lat, self._monitored_stop.lng)
+        return round(distance, 2)
 
     @property
     def available(self) -> bool:

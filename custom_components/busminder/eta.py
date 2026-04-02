@@ -58,6 +58,48 @@ def estimate_eta(
     return timedelta(hours=hours)
 
 
+def route_distance_km(
+    bus: BusPosition,
+    route: Route,
+    monitored_stop: Stop,
+) -> Optional[float]:
+    """
+    Estimate distance from the bus to the monitored stop by summing haversine
+    distances along the stop sequence.
+
+    Returns None if:
+    - The bus's last stop is not found in the route
+    - The bus has already passed the monitored stop
+    - last_stop_id is None
+    """
+    if bus.last_stop_id is None:
+        return None
+
+    stops = sorted(route.stops, key=lambda s: s.sequence)
+    stop_ids = [s.id for s in stops]
+
+    try:
+        last_idx = stop_ids.index(bus.last_stop_id)
+        monitored_idx = stop_ids.index(monitored_stop.id)
+    except ValueError:
+        return None
+
+    if last_idx >= monitored_idx:
+        return None  # bus has passed the monitored stop
+
+    # Stops the bus still needs to pass through, including the monitored stop
+    upcoming = stops[last_idx + 1 : monitored_idx + 1]
+
+    # Distance from current bus position to the next stop
+    total = haversine_km(bus.lat, bus.lng, upcoming[0].lat, upcoming[0].lng)
+
+    # Sum distances between consecutive upcoming stops
+    for i in range(1, len(upcoming)):
+        total += haversine_km(upcoming[i - 1].lat, upcoming[i - 1].lng, upcoming[i].lat, upcoming[i].lng)
+
+    return total
+
+
 class SpeedTracker:
     """
     Estimates speed per trip from consecutive GPS positions.

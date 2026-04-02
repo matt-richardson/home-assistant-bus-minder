@@ -2,7 +2,7 @@ from datetime import timedelta
 
 import pytest
 
-from custom_components.busminder.eta import SpeedTracker, estimate_eta, haversine_km
+from custom_components.busminder.eta import SpeedTracker, estimate_eta, haversine_km, route_distance_km
 from custom_components.busminder.models import BusPosition, Route, Stop
 
 
@@ -131,6 +131,73 @@ def test_estimate_eta_last_stop_id_none():
     bus = make_bus(10001, -37.782, 145.340, last_stop_id=None)
     result = estimate_eta(bus, route, stops[1], speed_kmh=30.0)
     assert result is None
+
+
+def test_route_distance_km_sums_stop_segments():
+    """route_distance_km sums haversine distances between stops along the route."""
+    stops = [
+        make_stop(1, -37.780, 145.340, 1),
+        make_stop(2, -37.785, 145.340, 2),
+        make_stop(3, -37.790, 145.340, 3),  # monitored
+    ]
+    route = make_route(10001, stops)
+    bus = make_bus(10001, -37.781, 145.340, last_stop_id=1)
+    monitored = stops[2]
+
+    result = route_distance_km(bus, route, monitored)
+
+    assert result is not None
+    # bus → stop2 + stop2 → stop3, all heading south ~0.55km each segment
+    assert 0.5 < result < 2.0
+
+
+def test_route_distance_km_returns_none_when_passed():
+    """route_distance_km returns None when bus has passed the monitored stop."""
+    stops = [
+        make_stop(1, -37.780, 145.340, 1),
+        make_stop(2, -37.785, 145.340, 2),  # monitored
+        make_stop(3, -37.790, 145.340, 3),
+    ]
+    route = make_route(10001, stops)
+    bus = make_bus(10001, -37.788, 145.340, last_stop_id=3)
+    result = route_distance_km(bus, route, stops[1])
+    assert result is None
+
+
+def test_route_distance_km_returns_none_when_last_stop_unknown():
+    """route_distance_km returns None when bus.last_stop_id is not in the route."""
+    stops = [make_stop(1, -37.780, 145.340, 1), make_stop(2, -37.785, 145.340, 2)]
+    route = make_route(10001, stops)
+    bus = make_bus(10001, -37.782, 145.340, last_stop_id=999)
+    result = route_distance_km(bus, route, stops[1])
+    assert result is None
+
+
+def test_route_distance_km_returns_none_when_last_stop_id_none():
+    """route_distance_km returns None when bus.last_stop_id is None."""
+    stops = [make_stop(1, -37.780, 145.340, 1), make_stop(2, -37.785, 145.340, 2)]
+    route = make_route(10001, stops)
+    bus = make_bus(10001, -37.782, 145.340, last_stop_id=None)
+    result = route_distance_km(bus, route, stops[1])
+    assert result is None
+
+
+def test_route_distance_km_greater_than_straight_line_for_winding_route():
+    """Along-route distance is >= straight-line haversine for non-trivial routes."""
+    stops = [
+        make_stop(1, -37.780, 145.340, 1),
+        make_stop(2, -37.780, 145.360, 2),  # east
+        make_stop(3, -37.790, 145.360, 3),  # then south — L-shape
+    ]
+    route = make_route(10001, stops)
+    bus = make_bus(10001, -37.781, 145.340, last_stop_id=1)
+    monitored = stops[2]
+
+    along_route = route_distance_km(bus, route, monitored)
+    straight_line = haversine_km(bus.lat, bus.lng, monitored.lat, monitored.lng)
+
+    assert along_route is not None
+    assert along_route > straight_line
 
 
 def test_speed_tracker_returns_none_when_all_samples_too_close_in_time():

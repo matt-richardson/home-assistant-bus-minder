@@ -13,7 +13,7 @@ from homeassistant.helpers.issue_registry import IssueSeverity
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
 from .const import CONF_OPERATOR_URL, CONF_ROUTE_GROUP_UUID, CONF_ROUTES, DOMAIN
-from .eta import SpeedTracker
+from .eta import SpeedTracker, route_distance_km
 from .models import BusPosition, Route, Stop
 from .scraper import fetch_route_group_by_uuid
 from .signalr import SignalRClient
@@ -158,6 +158,13 @@ class BusMinderCoordinator(DataUpdateCoordinator[dict[int, BusPosition]]):
     @property
     def monitored_trip_ids(self) -> set[int]:
         return self._monitored_trip_ids
+
+    def get_route_distance_km(self, trip_id: int, bus: BusPosition, monitored_stop: Stop) -> Optional[float]:
+        """Return along-route distance from bus to monitored stop, or None if route data unavailable."""
+        route = self._full_routes.get(trip_id)
+        if not route:
+            return None
+        return route_distance_km(bus, route, monitored_stop)
 
     def get_speed(self, trip_id: int) -> Optional[float]:
         return self._speed_tracker.get_speed(trip_id)
