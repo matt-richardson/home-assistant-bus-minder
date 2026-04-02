@@ -34,7 +34,9 @@ async def test_sensor_unavailable_before_first_update(hass: HomeAssistant, mock_
 async def test_sensor_shows_eta_minutes(hass: HomeAssistant, mock_config_entry):
     pos = make_position()
 
-    async def fake_stream():
+    async def fake_stream(on_connected=None):
+        if on_connected is not None:
+            on_connected()
         yield pos
         await asyncio.sleep(9999)
 

@@ -130,7 +130,7 @@ class BusMinderCoordinator(DataUpdateCoordinator[dict[int, BusPosition]]):
             try:
                 client = SignalRClient(session, uuid)
                 _LOGGER.info("BusMinder: connecting to route group %s", uuid)
-                async for position in client.stream():
+                async for position in client.stream(on_connected=self._on_sse_connected):
                     self._on_position(position)
                 # Stream ended cleanly — treat as a transient failure to reconnect
                 raise RuntimeError("SSE stream ended unexpectedly")
@@ -167,14 +167,16 @@ class BusMinderCoordinator(DataUpdateCoordinator[dict[int, BusPosition]]):
                 await asyncio.sleep(backoff)
                 backoff = min(backoff * 2, 60)
 
+    def _on_sse_connected(self) -> None:
+        """Called by SignalRClient when the SSE stream initializes successfully."""
+        if not self.is_connected:
+            self.is_connected = True
+            self.async_update_listeners()
+
     def _on_position(self, pos: BusPosition) -> None:
         if pos.trip_id not in self._monitored_trip_ids:
             return
 
-        # Reset failure tracking on successful data
-        if not self.is_connected:
-            self.is_connected = True
-            self.async_update_listeners()
         if self.connection_failed:
             self.connection_failed = False
             self._failure_count = 0

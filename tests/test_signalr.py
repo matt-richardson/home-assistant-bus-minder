@@ -206,3 +206,39 @@ async def test_stream_yields_positions(mock_aiohttp):
 
     assert len(positions) == 1
     assert positions[0].trip_id == 10001
+
+
+async def test_stream_calls_on_connected_after_init(mock_aiohttp):
+    """stream() calls on_connected after the initialized handshake completes."""
+    import urllib.parse
+
+    token = TOKEN
+
+    neg_qs = urllib.parse.urlencode({"clientProtocol": "2.0", "connectionData": '[{"name":"broadcasthub"}]'})
+    mock_aiohttp.get(f"https://live.busminder.com.au/signalr/negotiate?{neg_qs}", payload=NEGOTIATE_RESP)
+
+    sse_lines = (f"data: initialized\n\n" f"data: {GPS_MSG}\n\n").encode()
+    connect_qs = urllib.parse.urlencode(
+        {
+            "transport": "serverSentEvents",
+            "clientProtocol": "2.0",
+            "connectionToken": token,
+            "connectionData": '[{"name":"broadcasthub"}]',
+        }
+    )
+    mock_aiohttp.get(
+        f"https://live.busminder.com.au/signalr/connect?{connect_qs}",
+        body=sse_lines,
+        content_type="text/event-stream",
+    )
+    mock_aiohttp.get(f"https://live.busminder.com.au/signalr/start?{connect_qs}", payload={"Response": "started"})
+    mock_aiohttp.post(f"https://live.busminder.com.au/signalr/send?{connect_qs}", payload={"I": "0"})
+
+    connected_calls = []
+    async with aiohttp.ClientSession() as session:
+        client = SignalRClient(session, ROUTE_UUID)
+        with patch("custom_components.busminder.signalr.asyncio.sleep"):
+            async for _ in client.stream(on_connected=lambda: connected_calls.append(1)):
+                break
+
+    assert len(connected_calls) == 1

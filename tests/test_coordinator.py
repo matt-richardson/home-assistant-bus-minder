@@ -16,7 +16,9 @@ async def test_coordinator_dispatches_position(hass: HomeAssistant, mock_config_
     """GPS events from SignalR should update coordinator.data."""
     mock_config_entry.add_to_hass(hass)
 
-    async def fake_stream():
+    async def fake_stream(on_connected=None):
+        if on_connected is not None:
+            on_connected()
         pos = BusPosition(
             trip_id=10001,
             bus_id=11528,
@@ -43,7 +45,9 @@ async def test_coordinator_dispatches_position(hass: HomeAssistant, mock_config_
 async def test_coordinator_filters_unmonitored_routes(hass: HomeAssistant, mock_config_entry):
     """GPS events for trip IDs not in config should be ignored."""
 
-    async def fake_stream():
+    async def fake_stream(on_connected=None):
+        if on_connected is not None:
+            on_connected()
         pos = BusPosition(
             trip_id=99999,  # not in config
             bus_id=1,
@@ -70,7 +74,7 @@ async def test_repair_issue_raised_after_three_failures(hass: HomeAssistant, moc
     """Repair issue is created after RECONNECT_THRESHOLD consecutive SSE failures."""
     from homeassistant.helpers import issue_registry as ir
 
-    async def failing_stream():
+    async def failing_stream(on_connected=None):
         raise Exception("SSE connection lost")
         yield  # make it an async generator
 

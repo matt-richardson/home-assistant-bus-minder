@@ -4,7 +4,8 @@ import asyncio
 import json
 import logging
 import urllib.parse
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Callable
+from typing import Optional
 
 import aiohttp
 
@@ -92,7 +93,7 @@ class SignalRClient:
                 _LOGGER.debug("Failed to parse GPS message: %s", exc)
         return positions
 
-    async def stream(self) -> AsyncIterator[BusPosition]:
+    async def stream(self, on_connected: Optional[Callable[[], None]] = None) -> AsyncIterator[BusPosition]:
         """
         Connect to BusMinder SignalR and yield BusPosition updates indefinitely.
         Handles the full negotiation + SSE open + start + register sequence.
@@ -125,6 +126,8 @@ class SignalRClient:
                     await asyncio.sleep(2)
                     await self._start(token)
                     await self._register(token)
+                    if on_connected is not None:
+                        on_connected()
                     continue
 
                 for pos in self._parse_sse_payload(payload):

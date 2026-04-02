@@ -55,7 +55,7 @@ async def test_connected_sensor_off_on_first_sse_failure(hass: HomeAssistant, mo
 
 
 async def test_connected_sensor_recovers(hass: HomeAssistant, mock_config_entry):
-    """Connected sensor returns to 'on' as soon as a position is received."""
+    """Connected sensor returns to 'on' when the SSE stream re-initializes."""
     mock_config_entry.add_to_hass(hass)
     await hass.config_entries.async_setup(mock_config_entry.entry_id)
     await hass.async_block_till_done()
