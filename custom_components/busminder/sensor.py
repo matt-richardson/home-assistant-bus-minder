@@ -80,7 +80,10 @@ class BusEtaSensor(BusMinderEntity, SensorEntity):
         if pos is None:
             return None
         speed = self.coordinator.get_speed(self._route.trip_id)
-        eta = estimate_eta(pos, self._route, self._monitored_stop, speed)
+        # Use the full route (with all stops) if available — needed so estimate_eta
+        # can locate the bus's last_stop_id in the stop sequence.
+        route = self.coordinator.get_full_route(self._route.trip_id) or self._route
+        eta = estimate_eta(pos, route, self._monitored_stop, speed)
         if eta is None:
             return None
         return max(0, round(eta.total_seconds() / 60))
@@ -102,7 +105,8 @@ class BusEtaSensor(BusMinderEntity, SensorEntity):
             status = "not_running"
         else:
             speed = self.coordinator.get_speed(self._route.trip_id)
-            eta = estimate_eta(pos, self._route, self._monitored_stop, speed)
+            route = self.coordinator.get_full_route(self._route.trip_id) or self._route
+            eta = estimate_eta(pos, route, self._monitored_stop, speed)
             status = "approaching" if eta is not None else "passed"
 
         return {

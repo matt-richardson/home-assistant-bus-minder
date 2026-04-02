@@ -193,6 +193,10 @@ class BusMinderCoordinator(DataUpdateCoordinator[dict[int, BusPosition]]):
     def monitored_trip_ids(self) -> set[int]:
         return self._monitored_trip_ids
 
+    def get_full_route(self, trip_id: int) -> Optional[Route]:
+        """Return the full route (with all stops) fetched at startup, or None if unavailable."""
+        return self._full_routes.get(trip_id)
+
     def get_route_distance_km(self, trip_id: int, bus: BusPosition, monitored_stop: Stop) -> Optional[float]:
         """Return along-route distance from bus to monitored stop, or None if route data unavailable."""
         route = self._full_routes.get(trip_id)

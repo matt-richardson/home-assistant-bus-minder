@@ -126,37 +126,59 @@ async def test_sensor_extra_attrs_no_position(hass: HomeAssistant, mock_config_e
 
 
 async def test_sensor_eta_minutes_returned(hass: HomeAssistant, mock_config_entry):
-    """Sensor native_value returns minutes when ETA is calculable."""
+    """ETA sensor returns a value when full route metadata is available."""
+    from unittest.mock import AsyncMock
     from unittest.mock import patch as _patch
 
-    # Position where bus is before the monitored stop (last_stop_id=10000, not the monitored stop 10001)
+    from custom_components.busminder.models import Route, RouteGroup, Stop
+
+    full_route_group = RouteGroup(
+        uuid="aaaaaaaa-0000-4000-8000-000000000001",
+        name="Springfield High - PM",
+        routes=[
+            Route(
+                trip_id=10001,
+                name="1001 : Springfield 1 | Springfield High to City - PM",
+                route_number="1001",
+                colour="",
+                stops=[
+                    Stop(id=10000, name="Depot", lat=-37.760, lng=145.310, sequence=1),
+                    Stop(id=10001, name="Springfield High - Main Gate", lat=-37.7877, lng=145.33912, sequence=2),
+                ],
+            )
+        ],
+    )
+
+    with _patch(
+        "custom_components.busminder.coordinator.fetch_route_group_by_uuid",
+        new=AsyncMock(return_value=full_route_group),
+    ):
+        mock_config_entry.add_to_hass(hass)
+        await hass.config_entries.async_setup(mock_config_entry.entry_id)
+        await hass.async_block_till_done()
+
+    coordinator = mock_config_entry.runtime_data
+
+    # Bus just passed stop 10000, heading to monitored stop 10001
     pos = BusPosition(
         trip_id=10001,
         bus_id=1,
         bus_reg="1528",
-        lat=-37.820,
-        lng=145.340,
-        last_stop_id=10000,  # a stop before the monitored stop
+        lat=-37.760,
+        lng=145.310,
+        last_stop_id=10000,
         last_stop_time=None,
         received_at=datetime.now(timezone.utc),
     )
 
-    mock_config_entry.add_to_hass(hass)
-    await hass.config_entries.async_setup(mock_config_entry.entry_id)
-    await hass.async_block_till_done()
-
-    coordinator = mock_config_entry.runtime_data
-
-    entity_id = "sensor.busminder_1001_eta"
-
-    # Manually inject position data and patch get_speed to return a valid speed
     with _patch.object(coordinator, "get_speed", return_value=30.0):
         coordinator.async_set_updated_data({10001: pos})
         await hass.async_block_till_done()
 
-    # The state may be "unknown" if stops don't include 10000, but we just verify no crash
-    state = hass.states.get(entity_id)
+    state = hass.states.get("sensor.busminder_1001_eta")
     assert state is not None
+    assert state.state not in ("unknown", "unavailable")
+    assert int(state.state) >= 0
 
 
 async def test_each_sensor_gets_its_own_stop(hass: HomeAssistant, mock_config_entry):
