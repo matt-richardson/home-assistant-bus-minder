@@ -22,4 +22,3 @@ Ideas and deferred work for future iterations.
 ## Ops / Release
 
 - **Cut 0.2.0 tag** — trigger release-please by pushing a tag, or manually create the GitHub release.
-- **Codecov badge** — add `CODECOV_TOKEN` secret to GitHub repo settings so the coverage badge in README resolves.
