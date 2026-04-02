@@ -11,7 +11,7 @@ from .coordinator import BusMinderCoordinator
 
 BusMinderConfigEntry: TypeAlias = ConfigEntry[BusMinderCoordinator]
 
-PLATFORMS = ["sensor", "device_tracker"]
+PLATFORMS = ["binary_sensor", "sensor", "device_tracker"]
 PARALLEL_UPDATES = 1
 
 

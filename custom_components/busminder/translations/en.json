@@ -74,6 +74,11 @@
     }
   },
   "entity": {
+    "binary_sensor": {
+      "connected": {
+        "name": "Connected"
+      }
+    },
     "sensor": {
       "eta": {
         "name": "ETA"
