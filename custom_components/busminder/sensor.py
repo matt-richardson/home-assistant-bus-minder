@@ -36,14 +36,14 @@ async def async_setup_entry(
     for route_data in effective.get(CONF_ROUTES, []):
         stop = Stop(
             id=route_data["stop_id"],
-            name=route_data["stop_name"],
+            name=route_data.get("custom_stop_name") or route_data["stop_name"],
             lat=route_data["stop_lat"],
             lng=route_data["stop_lng"],
             sequence=0,
         )
         route = Route(
             trip_id=route_data["trip_id"],
-            name=route_data["name"],
+            name=route_data.get("custom_route_name") or route_data["name"],
             route_number=route_data["route_number"],
             colour="",
             stops=[stop],

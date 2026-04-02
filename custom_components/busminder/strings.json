@@ -19,7 +19,9 @@
         "title": "Select your stop",
         "description": "Choose the stop for **{route_name}** where you want arrival estimates.",
         "data": {
-          "stop_id": "Stop"
+          "stop_id": "Stop",
+          "custom_route_name": "Custom route name",
+          "custom_stop_name": "Custom stop name"
         }
       }
     },
@@ -53,7 +55,9 @@
         "title": "Select your stop",
         "description": "Choose the stop for **{route_name}** where you want arrival estimates.",
         "data": {
-          "stop_id": "Stop"
+          "stop_id": "Stop",
+          "custom_route_name": "Custom route name",
+          "custom_stop_name": "Custom stop name"
         }
       }
     },

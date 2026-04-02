@@ -14,10 +14,6 @@ Ideas and deferred work for future iterations.
 - **HACS submission** — submit to the HACS default repository once a release tag is cut.
 - **Gold tier** — review the [Gold tier checklist](https://developers.home-assistant.io/docs/core/integration-quality-scale/checklist) and identify gaps.
 
-## UX
-
-- Allow user to give custom names to the routes and to the stops.
-
 ## Features
 
 - **Arrival notifications** — HA automation-friendly: fire an event or expose a binary sensor when the bus is N minutes away.

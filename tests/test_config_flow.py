@@ -442,3 +442,73 @@ async def test_options_flow_each_route_defaults_to_its_own_saved_stop(
     schema_2 = result["data_schema"].schema
     stop_field_2 = next(k for k in schema_2 if str(k) == "stop_id")
     assert (stop_field_2.default() if callable(stop_field_2.default) else stop_field_2.default) == "10003"
+
+
+async def test_full_flow_stores_custom_names(hass: HomeAssistant, mock_scraper):
+    """Custom route and stop names entered in pick_stop are stored in the config entry."""
+    result = await hass.config_entries.flow.async_init(DOMAIN, context={"source": config_entries.SOURCE_USER})
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], user_input={"operator_url": OPERATOR_URL}
+    )
+    result = await hass.config_entries.flow.async_configure(result["flow_id"], user_input={"trip_ids": ["10001"]})
+    assert result["step_id"] == "pick_stop"
+
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"],
+        user_input={
+            "stop_id": "10001",
+            "custom_route_name": "My Bus",
+            "custom_stop_name": "Front Gate",
+        },
+    )
+    assert result["type"] == FlowResultType.CREATE_ENTRY
+    route = result["data"]["routes"][0]
+    assert route["custom_route_name"] == "My Bus"
+    assert route["custom_stop_name"] == "Front Gate"
+
+
+async def test_full_flow_blank_custom_names_use_api_names(hass: HomeAssistant, mock_scraper):
+    """Leaving custom name fields blank falls back to the API-provided names."""
+    result = await hass.config_entries.flow.async_init(DOMAIN, context={"source": config_entries.SOURCE_USER})
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], user_input={"operator_url": OPERATOR_URL}
+    )
+    result = await hass.config_entries.flow.async_configure(result["flow_id"], user_input={"trip_ids": ["10001"]})
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"],
+        user_input={
+            "stop_id": "10001",
+            "custom_route_name": "",
+            "custom_stop_name": "",
+        },
+    )
+    assert result["type"] == FlowResultType.CREATE_ENTRY
+    route = result["data"]["routes"][0]
+    assert route["custom_route_name"] == "1001 : Springfield 1 | Springfield High to City - PM"
+    assert route["custom_stop_name"] == "Springfield High - Main Gate"
+
+
+async def test_options_flow_prepopulates_custom_names(hass: HomeAssistant, mock_config_entry, mock_scraper):
+    """Options flow pre-fills custom name fields from previously saved values."""
+    # Set up entry with saved custom names
+    mock_config_entry.data["routes"][0]["custom_route_name"] = "My Bus"
+    mock_config_entry.data["routes"][0]["custom_stop_name"] = "Front Gate"
+
+    mock_config_entry.add_to_hass(hass)
+    await hass.config_entries.async_setup(mock_config_entry.entry_id)
+    await hass.async_block_till_done()
+
+    result = await hass.config_entries.options.async_init(mock_config_entry.entry_id)
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"], user_input={"operator_url": OPERATOR_URL}
+    )
+    result = await hass.config_entries.options.async_configure(result["flow_id"], user_input={"trip_ids": ["10001"]})
+    assert result["step_id"] == "pick_stop"
+
+    schema = result["data_schema"].schema
+    route_name_field = next(k for k in schema if str(k) == "custom_route_name")
+    stop_name_field = next(k for k in schema if str(k) == "custom_stop_name")
+    route_name_default = route_name_field.default() if callable(route_name_field.default) else route_name_field.default
+    stop_name_default = stop_name_field.default() if callable(stop_name_field.default) else stop_name_field.default
+    assert route_name_default == "My Bus"
+    assert stop_name_default == "Front Gate"

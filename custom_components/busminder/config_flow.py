@@ -118,6 +118,9 @@ class BusMinderConfigFlow(ConfigFlow, domain=DOMAIN):  # type: ignore[call-arg] 
                     errors={"base": "unknown"},
                 )
 
+            custom_route_name = user_input.get("custom_route_name", "").strip() or current_route.name
+            custom_stop_name = user_input.get("custom_stop_name", "").strip() or stop.name
+
             self._confirmed_routes.append(
                 {
                     "trip_id": current_route.trip_id,
@@ -128,6 +131,8 @@ class BusMinderConfigFlow(ConfigFlow, domain=DOMAIN):  # type: ignore[call-arg] 
                     "stop_name": stop.name,
                     "stop_lat": stop.lat,
                     "stop_lng": stop.lng,
+                    "custom_route_name": custom_route_name,
+                    "custom_stop_name": custom_stop_name,
                 }
             )
             self._last_confirmed_stop_id = stop.id
@@ -152,7 +157,12 @@ class BusMinderConfigFlow(ConfigFlow, domain=DOMAIN):  # type: ignore[call-arg] 
             description_placeholders={"route_name": current_route.name},
         )
 
-    def _stop_schema(self, route: Route) -> vol.Schema:
+    def _stop_schema(
+        self,
+        route: Route,
+        custom_route_name_default: str = "",
+        custom_stop_name_default: str = "",
+    ) -> vol.Schema:
         stop_options = sorted(
             [selector.SelectOptionDict(value=str(s.id), label=s.name) for s in route.stops],
             key=lambda o: o["label"],
@@ -166,6 +176,10 @@ class BusMinderConfigFlow(ConfigFlow, domain=DOMAIN):  # type: ignore[call-arg] 
                 vol.Required("stop_id", default=default): selector.SelectSelector(
                     selector.SelectSelectorConfig(options=stop_options, multiple=False)
                 ),
+                vol.Optional(
+                    "custom_route_name", default=custom_route_name_default or route.name
+                ): selector.TextSelector(),
+                vol.Optional("custom_stop_name", default=custom_stop_name_default): selector.TextSelector(),
             }
         )
 
@@ -183,6 +197,14 @@ class BusMinderOptionsFlow(OptionsFlow):
         self._confirmed_routes: list[dict] = []
         # Per-route saved stops so each route defaults to its own previously chosen stop on re-open
         self._saved_stops: dict[int, int] = {r["trip_id"]: r["stop_id"] for r in current.get(CONF_ROUTES, [])}
+        # Per-route saved custom names for pre-population on re-open
+        self._saved_custom_names: dict[int, dict] = {
+            r["trip_id"]: {
+                "custom_route_name": r.get("custom_route_name", ""),
+                "custom_stop_name": r.get("custom_stop_name", ""),
+            }
+            for r in current.get(CONF_ROUTES, [])
+        }
         self._last_confirmed_stop_id: Optional[int] = None
 
     async def async_step_init(self, _user_input: Optional[dict[str, Any]] = None) -> ConfigFlowResult:
@@ -273,6 +295,9 @@ class BusMinderOptionsFlow(OptionsFlow):
                     errors={"base": "unknown"},
                 )
 
+            custom_route_name = user_input.get("custom_route_name", "").strip() or current_route.name
+            custom_stop_name = user_input.get("custom_stop_name", "").strip() or stop.name
+
             self._confirmed_routes.append(
                 {
                     "trip_id": current_route.trip_id,
@@ -283,6 +308,8 @@ class BusMinderOptionsFlow(OptionsFlow):
                     "stop_name": stop.name,
                     "stop_lat": stop.lat,
                     "stop_lng": stop.lng,
+                    "custom_route_name": custom_route_name,
+                    "custom_stop_name": custom_stop_name,
                 }
             )
             self._last_confirmed_stop_id = stop.id
@@ -316,10 +343,16 @@ class BusMinderOptionsFlow(OptionsFlow):
         # Prefer the previously saved stop for this specific route; fall back to last confirmed
         default_id = self._saved_stops.get(route.trip_id, self._last_confirmed_stop_id)
         default = str(default_id) if default_id in stop_ids_in_route else vol.UNDEFINED
+        # Pre-populate custom name fields with previously saved values
+        saved = self._saved_custom_names.get(route.trip_id, {})
+        custom_route_name_default = saved.get("custom_route_name") or route.name
+        custom_stop_name_default = saved.get("custom_stop_name", "")
         return vol.Schema(
             {
                 vol.Required("stop_id", default=default): selector.SelectSelector(
                     selector.SelectSelectorConfig(options=stop_options, multiple=False)
                 ),
+                vol.Optional("custom_route_name", default=custom_route_name_default): selector.TextSelector(),
+                vol.Optional("custom_stop_name", default=custom_stop_name_default): selector.TextSelector(),
             }
         )
