@@ -49,6 +49,7 @@ async def async_setup_entry(
             stops=[stop],
         )
         entities.append(BusEtaSensor(coordinator, entry, route, stop))
+        entities.append(BusNextStopSensor(coordinator, entry, route))
 
     async_add_entities(entities)
 
@@ -109,6 +110,40 @@ class BusEtaSensor(BusMinderEntity, SensorEntity):
             "last_updated": pos.received_at.isoformat(),
             "status": status,
         }
+
+    def _get_position(self) -> Optional[BusPosition]:
+        if not self.coordinator.data:
+            return None
+        return self.coordinator.data.get(self._route.trip_id)
+
+
+class BusNextStopSensor(BusMinderEntity, SensorEntity):
+    _attr_translation_key = "next_stop"
+
+    def __init__(
+        self,
+        coordinator: BusMinderCoordinator,
+        entry: ConfigEntry,
+        route: Route,
+    ) -> None:
+        super().__init__(coordinator, entry, route.trip_id, route.route_number, route.name)
+        self._route = route
+        self._attr_unique_id = f"{entry.entry_id}_{route.trip_id}_next_stop"
+        self.entity_id = f"sensor.busminder_{route.route_number.lower()}_next_stop"
+
+    @property
+    def native_value(self) -> Optional[str]:
+        pos = self._get_position()
+        if pos is None or pos.last_stop_id is None:
+            return None
+        next_stop = self.coordinator.get_next_stop(self._route.trip_id, pos.last_stop_id)
+        return next_stop.name if next_stop else None
+
+    @property
+    def available(self) -> bool:
+        if self.coordinator.connection_failed:
+            return False
+        return self.coordinator.last_update_success and self._get_position() is not None
 
     def _get_position(self) -> Optional[BusPosition]:
         if not self.coordinator.data:

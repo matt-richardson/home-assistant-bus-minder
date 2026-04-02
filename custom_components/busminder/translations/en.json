@@ -73,6 +73,9 @@
     "sensor": {
       "eta": {
         "name": "ETA"
+      },
+      "next_stop": {
+        "name": "Next Stop"
       }
     }
   }

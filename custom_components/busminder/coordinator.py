@@ -14,7 +14,8 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
 from .const import CONF_OPERATOR_URL, CONF_ROUTE_GROUP_UUID, CONF_ROUTES, DOMAIN
 from .eta import SpeedTracker
-from .models import BusPosition, Route
+from .models import BusPosition, Route, Stop
+from .scraper import fetch_route_group_by_uuid
 from .signalr import SignalRClient
 
 _LOGGER = logging.getLogger(__name__)
@@ -51,6 +52,7 @@ class BusMinderCoordinator(DataUpdateCoordinator[dict[int, BusPosition]]):
             for r in route_data
         }
         self._monitored_trip_ids: set[int] = set(self._monitored_routes.keys())
+        self._full_routes: dict[int, Route] = {}
 
         self.etas: dict[int, Optional[float]] = {}  # trip_id → minutes or None
 
@@ -73,6 +75,14 @@ class BusMinderCoordinator(DataUpdateCoordinator[dict[int, BusPosition]]):
         for uuid in uuids:
             task = self.hass.async_create_background_task(self._run_sse(uuid), f"busminder_sse_{uuid}")
             self._sse_tasks.append(task)
+
+        for uuid in uuids:
+            try:
+                group = await fetch_route_group_by_uuid(session, uuid)
+                for route in group.routes:
+                    self._full_routes[route.trip_id] = route
+            except Exception:  # pylint: disable=broad-exception-caught
+                _LOGGER.debug("BusMinder: could not fetch stop metadata for route group %s", uuid)
 
     async def async_shutdown(self) -> None:
         """Cancel all SSE tasks on unload."""
@@ -151,3 +161,18 @@ class BusMinderCoordinator(DataUpdateCoordinator[dict[int, BusPosition]]):
 
     def get_speed(self, trip_id: int) -> Optional[float]:
         return self._speed_tracker.get_speed(trip_id)
+
+    def get_next_stop(self, trip_id: int, last_stop_id: int) -> Optional[Stop]:
+        """Return the stop immediately after last_stop_id in the route sequence, or None."""
+        route = self._full_routes.get(trip_id)
+        if not route:
+            return None
+        stops = sorted(route.stops, key=lambda s: s.sequence)
+        stop_ids = [s.id for s in stops]
+        try:
+            idx = stop_ids.index(last_stop_id)
+        except ValueError:
+            return None
+        if idx + 1 >= len(stops):
+            return None
+        return stops[idx + 1]
