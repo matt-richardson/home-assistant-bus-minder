@@ -7,7 +7,6 @@ Ideas and deferred work for future iterations.
 ## Deferred from Silver Tier
 
 - **GTFS schedule integration** — compare live bus position against the scheduled timetable to surface "running X minutes behind" as a sensor attribute.
-- **Custom HA services** — e.g. `busminder.refresh` to force an immediate SSE reconnect without restarting the integration.
 
 ## Quality / Certification
 

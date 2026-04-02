@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import TypeAlias
 
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, ServiceCall
 from homeassistant.helpers import device_registry as dr
 
 from .const import CONF_ROUTES, DOMAIN
@@ -21,6 +21,16 @@ async def async_setup_entry(hass: HomeAssistant, entry: BusMinderConfigEntry) ->
     entry.runtime_data = coordinator
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     entry.async_on_unload(entry.add_update_listener(async_reload_entry))
+
+    if not hass.services.has_service(DOMAIN, "reconnect"):
+
+        async def _handle_reconnect(_call: ServiceCall) -> None:
+            for loaded_entry in hass.config_entries.async_entries(DOMAIN):
+                if loaded_entry.runtime_data:
+                    await loaded_entry.runtime_data.async_reconnect()
+
+        hass.services.async_register(DOMAIN, "reconnect", _handle_reconnect)
+
     return True
 
 

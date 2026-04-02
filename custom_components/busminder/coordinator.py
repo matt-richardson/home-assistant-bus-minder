@@ -86,6 +86,29 @@ class BusMinderCoordinator(DataUpdateCoordinator[dict[int, BusPosition]]):
 
     async def async_shutdown(self) -> None:
         """Cancel all SSE tasks on unload."""
+        await self._cancel_sse_tasks()
+
+    async def async_reconnect(self) -> None:
+        """Force-reconnect: cancel current SSE tasks and restart them."""
+        await self._cancel_sse_tasks()
+
+        self.connection_failed = False
+        self._failure_count = 0
+        self.async_update_listeners()
+        ir.async_delete_issue(self.hass, DOMAIN, "connection_failed")
+
+        effective = {**self._entry.data, **self._entry.options}
+        fallback_uuid = effective.get(CONF_ROUTE_GROUP_UUID, "")
+        uuids = {
+            r.get("uuid") or fallback_uuid for r in effective.get(CONF_ROUTES, []) if r.get("uuid") or fallback_uuid
+        }
+        for uuid in uuids:
+            task = self.hass.async_create_background_task(self._run_sse(uuid), f"busminder_sse_{uuid}")
+            self._sse_tasks.append(task)
+
+        _LOGGER.info("BusMinder: reconnect triggered, %d SSE task(s) restarted", len(self._sse_tasks))
+
+    async def _cancel_sse_tasks(self) -> None:
         for task in self._sse_tasks:
             if not task.done():
                 task.cancel()
@@ -93,6 +116,7 @@ class BusMinderCoordinator(DataUpdateCoordinator[dict[int, BusPosition]]):
                     await task
                 except asyncio.CancelledError:
                     pass
+        self._sse_tasks.clear()
 
     async def _run_sse(self, uuid: str) -> None:
         """Maintain the SSE connection for one route group UUID, reconnecting on error."""

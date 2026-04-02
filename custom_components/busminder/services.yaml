@@ -1,0 +1,5 @@
+reconnect:
+  name: Reconnect
+  description: >
+    Force all BusMinder config entries to drop their current SSE connections and reconnect immediately, without restarting Home Assistant or reloading the integration.
+
