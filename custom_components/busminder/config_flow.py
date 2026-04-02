@@ -181,9 +181,9 @@ class BusMinderOptionsFlow(OptionsFlow):
         self._selected_trip_ids: list[int] = [r["trip_id"] for r in current.get(CONF_ROUTES, [])]
         self._route_queue: list[Route] = []
         self._confirmed_routes: list[dict] = []
-        # Pre-populate from first route's current stop so it defaults correctly on re-open
-        first_route = next(iter(current.get(CONF_ROUTES, [])), None)
-        self._last_confirmed_stop_id: Optional[int] = first_route.get("stop_id") if first_route else None
+        # Per-route saved stops so each route defaults to its own previously chosen stop on re-open
+        self._saved_stops: dict[int, int] = {r["trip_id"]: r["stop_id"] for r in current.get(CONF_ROUTES, [])}
+        self._last_confirmed_stop_id: Optional[int] = None
 
     async def async_step_init(self, _user_input: Optional[dict[str, Any]] = None) -> ConfigFlowResult:
         return await self.async_step_user()
@@ -236,7 +236,6 @@ class BusMinderOptionsFlow(OptionsFlow):
                     key=lambda r: r.route_number,
                 )
                 self._confirmed_routes = []
-                # Keep _last_confirmed_stop_id so re-opening the options flow pre-selects existing stops
                 return await self.async_step_pick_stop()
 
         route_options = [
@@ -314,9 +313,9 @@ class BusMinderOptionsFlow(OptionsFlow):
             key=lambda o: o["label"],
         )
         stop_ids_in_route = {s.id for s in route.stops}
-        default = (
-            str(self._last_confirmed_stop_id) if self._last_confirmed_stop_id in stop_ids_in_route else vol.UNDEFINED
-        )
+        # Prefer the previously saved stop for this specific route; fall back to last confirmed
+        default_id = self._saved_stops.get(route.trip_id, self._last_confirmed_stop_id)
+        default = str(default_id) if default_id in stop_ids_in_route else vol.UNDEFINED
         return vol.Schema(
             {
                 vol.Required("stop_id", default=default): selector.SelectSelector(

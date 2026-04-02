@@ -401,3 +401,44 @@ async def test_options_flow_unknown_stop_id(hass: HomeAssistant, mock_config_ent
     assert result["type"] == FlowResultType.FORM
     assert result["step_id"] == "pick_stop"
     assert result["errors"] == {"base": "unknown"}
+
+
+async def test_options_flow_each_route_defaults_to_its_own_saved_stop(
+    hass: HomeAssistant, mock_config_entry, mock_scraper
+):
+    """Each route's stop picker defaults to that route's previously saved stop, not the first route's."""
+
+    async def empty_stream():
+        return
+        yield
+
+    with patch("custom_components.busminder.coordinator.SignalRClient") as MockClient:
+        MockClient.return_value.stream = empty_stream
+        mock_config_entry.add_to_hass(hass)
+        await hass.config_entries.async_setup(mock_config_entry.entry_id)
+        await hass.async_block_till_done()
+
+    # conftest has route 10001 → stop 10001, route 10002 → stop 10003
+    result = await hass.config_entries.options.async_init(mock_config_entry.entry_id)
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"], user_input={"operator_url": OPERATOR_URL}
+    )
+    # Select both routes
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"], user_input={"trip_ids": ["10001", "10002"]}
+    )
+    assert result["step_id"] == "pick_stop"
+
+    # Inspect the schema default for the first route (10001) — should be its saved stop 10001
+    schema_1 = result["data_schema"].schema
+    stop_field_1 = next(k for k in schema_1 if str(k) == "stop_id")
+    assert (stop_field_1.default() if callable(stop_field_1.default) else stop_field_1.default) == "10001"
+
+    # Confirm route 1001 with its saved stop and advance to route 1002
+    result = await hass.config_entries.options.async_configure(result["flow_id"], user_input={"stop_id": "10001"})
+    assert result["step_id"] == "pick_stop"
+
+    # Inspect the schema default for the second route (10002) — should be stop 10003, NOT 10001
+    schema_2 = result["data_schema"].schema
+    stop_field_2 = next(k for k in schema_2 if str(k) == "stop_id")
+    assert (stop_field_2.default() if callable(stop_field_2.default) else stop_field_2.default) == "10003"
