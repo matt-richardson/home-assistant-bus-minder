@@ -6,7 +6,6 @@ Ideas and deferred work for future iterations.
 
 ## Deferred from Silver Tier
 
-- **Multiple config entries** — already supported by design but no integration tests covering it. Add a test with two config entries to confirm they don't interfere.
 - **GTFS schedule integration** — compare live bus position against the scheduled timetable to surface "running X minutes behind" as a sensor attribute.
 - **Custom HA services** — e.g. `busminder.refresh` to force an immediate SSE reconnect without restarting the integration.
 
@@ -14,6 +13,10 @@ Ideas and deferred work for future iterations.
 
 - **HACS submission** — submit to the HACS default repository once a release tag is cut.
 - **Gold tier** — review the [Gold tier checklist](https://developers.home-assistant.io/docs/core/integration-quality-scale/checklist) and identify gaps.
+
+## UX
+
+- Allow user to give custom names to the routes and to the stops.
 
 ## Features
 
