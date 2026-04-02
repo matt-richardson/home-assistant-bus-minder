@@ -4,16 +4,16 @@ import logging
 from datetime import datetime, timezone
 from typing import Optional
 
-from homeassistant.components.sensor import SensorEntity, SensorStateClass
+from homeassistant.components.sensor import SensorDeviceClass, SensorEntity, SensorStateClass
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import UnitOfTime
+from homeassistant.const import UnitOfLength, UnitOfTime
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .const import CONF_ROUTES
 from .coordinator import BusMinderCoordinator
 from .entity import BusMinderEntity
-from .eta import estimate_eta
+from .eta import estimate_eta, haversine_km
 from .models import BusPosition, Route, Stop
 
 _LOGGER = logging.getLogger(__name__)
@@ -50,6 +50,8 @@ async def async_setup_entry(
         )
         entities.append(BusEtaSensor(coordinator, entry, route, stop))
         entities.append(BusNextStopSensor(coordinator, entry, route))
+        entities.append(BusStopsToStopSensor(coordinator, entry, route, stop))
+        entities.append(BusDistanceSensor(coordinator, entry, route, stop))
 
     async_add_entities(entities)
 
@@ -138,6 +140,81 @@ class BusNextStopSensor(BusMinderEntity, SensorEntity):
             return None
         next_stop = self.coordinator.get_next_stop(self._route.trip_id, pos.last_stop_id)
         return next_stop.name if next_stop else None
+
+    @property
+    def available(self) -> bool:
+        if self.coordinator.connection_failed:
+            return False
+        return self.coordinator.last_update_success and self._get_position() is not None
+
+    def _get_position(self) -> Optional[BusPosition]:
+        if not self.coordinator.data:
+            return None
+        return self.coordinator.data.get(self._route.trip_id)
+
+
+class BusStopsToStopSensor(BusMinderEntity, SensorEntity):
+    _attr_state_class = SensorStateClass.MEASUREMENT
+    _attr_translation_key = "stops_to_stop"
+
+    def __init__(
+        self,
+        coordinator: BusMinderCoordinator,
+        entry: ConfigEntry,
+        route: Route,
+        monitored_stop: Stop,
+    ) -> None:
+        super().__init__(coordinator, entry, route.trip_id, route.route_number, route.name)
+        self._route = route
+        self._monitored_stop = monitored_stop
+        self._attr_unique_id = f"{entry.entry_id}_{route.trip_id}_stops_to_stop"
+        self.entity_id = f"sensor.busminder_{route.route_number.lower()}_stops_to_stop"
+
+    @property
+    def native_value(self) -> Optional[int]:
+        pos = self._get_position()
+        if pos is None or pos.last_stop_id is None:
+            return None
+        return self.coordinator.get_stops_until(self._route.trip_id, pos.last_stop_id, self._monitored_stop.id)
+
+    @property
+    def available(self) -> bool:
+        if self.coordinator.connection_failed:
+            return False
+        return self.coordinator.last_update_success and self._get_position() is not None
+
+    def _get_position(self) -> Optional[BusPosition]:
+        if not self.coordinator.data:
+            return None
+        return self.coordinator.data.get(self._route.trip_id)
+
+
+class BusDistanceSensor(BusMinderEntity, SensorEntity):
+    _attr_device_class = SensorDeviceClass.DISTANCE
+    _attr_native_unit_of_measurement = UnitOfLength.KILOMETERS
+    _attr_state_class = SensorStateClass.MEASUREMENT
+    _attr_suggested_display_precision = 1
+    _attr_translation_key = "distance"
+
+    def __init__(
+        self,
+        coordinator: BusMinderCoordinator,
+        entry: ConfigEntry,
+        route: Route,
+        monitored_stop: Stop,
+    ) -> None:
+        super().__init__(coordinator, entry, route.trip_id, route.route_number, route.name)
+        self._route = route
+        self._monitored_stop = monitored_stop
+        self._attr_unique_id = f"{entry.entry_id}_{route.trip_id}_distance"
+        self.entity_id = f"sensor.busminder_{route.route_number.lower()}_distance"
+
+    @property
+    def native_value(self) -> Optional[float]:
+        pos = self._get_position()
+        if pos is None:
+            return None
+        return round(haversine_km(pos.lat, pos.lng, self._monitored_stop.lat, self._monitored_stop.lng), 2)
 
     @property
     def available(self) -> bool:

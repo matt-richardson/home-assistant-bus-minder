@@ -76,6 +76,12 @@
       },
       "next_stop": {
         "name": "Next Stop"
+      },
+      "stops_to_stop": {
+        "name": "Stops to Stop"
+      },
+      "distance": {
+        "name": "Distance"
       }
     }
   }

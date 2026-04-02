@@ -162,6 +162,22 @@ class BusMinderCoordinator(DataUpdateCoordinator[dict[int, BusPosition]]):
     def get_speed(self, trip_id: int) -> Optional[float]:
         return self._speed_tracker.get_speed(trip_id)
 
+    def get_stops_until(self, trip_id: int, last_stop_id: int, monitored_stop_id: int) -> Optional[int]:
+        """Return the number of stops remaining until the monitored stop (inclusive), or None."""
+        route = self._full_routes.get(trip_id)
+        if not route:
+            return None
+        stops = sorted(route.stops, key=lambda s: s.sequence)
+        stop_ids = [s.id for s in stops]
+        try:
+            last_idx = stop_ids.index(last_stop_id)
+            monitored_idx = stop_ids.index(monitored_stop_id)
+        except ValueError:
+            return None
+        if last_idx >= monitored_idx:
+            return None  # already passed the monitored stop
+        return monitored_idx - last_idx
+
     def get_next_stop(self, trip_id: int, last_stop_id: int) -> Optional[Stop]:
         """Return the stop immediately after last_stop_id in the route sequence, or None."""
         route = self._full_routes.get(trip_id)
