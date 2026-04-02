@@ -2,17 +2,13 @@
 
 ## [1.1.0](https://github.com/matt-richardson/home-assistant-bus-minder/compare/v1.0.0...v1.1.0) (2026-04-02)
 
+### New entities
 
-### Features
+- **Connected sensor** (`binary_sensor.busminder_{route}_connected`) — diagnostic binary sensor that is `on` when the SSE stream is healthy and `off` the moment a connection error occurs. Recovers as soon as the stream re-initialises, independent of whether any buses are currently running.
 
-* add connectivity binary sensor per route ([e868abc](https://github.com/matt-richardson/home-assistant-bus-minder/commit/e868abcbba72130acd348645e6808e86a6be8b83))
+### Bug fixes
 
-
-### Bug Fixes
-
-* base connected sensor on SSE stream initialization, not position receipt ([365ebf3](https://github.com/matt-richardson/home-assistant-bus-minder/commit/365ebf380e82da6704b7c42707e33bd84a5937c2))
-* flip connected sensor off on first SSE failure, not after threshold ([c6e989f](https://github.com/matt-richardson/home-assistant-bus-minder/commit/c6e989fe3c804e18784cabd6ec9a3f53100512b2))
-* use full route stop list for ETA calculation ([4e9d602](https://github.com/matt-richardson/home-assistant-bus-minder/commit/4e9d6023538631254de6d5df6d9cb73aa76b9a93))
+- **ETA sensor was always showing unknown** — the ETA calculation requires the full route stop list to locate the bus in the stop sequence, but only the single monitored stop was being passed to it. It now uses the complete stop list fetched at startup. ([4e9d602](https://github.com/matt-richardson/home-assistant-bus-minder/commit/4e9d6023538631254de6d5df6d9cb73aa76b9a93))
 
 ## 1.0.0 (2026-04-02)
 
