@@ -32,7 +32,7 @@ async def async_setup_entry(
 
     effective = {**entry.data, **entry.options}
 
-    entities = []
+    entities: list[SensorEntity] = []
     for route_data in effective.get(CONF_ROUTES, []):
         stop = Stop(
             id=route_data["stop_id"],
