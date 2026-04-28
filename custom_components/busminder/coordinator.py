@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from datetime import datetime, time
 from typing import Optional
 
 from homeassistant.config_entries import ConfigEntry
@@ -14,6 +15,7 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
 from .const import CONF_OPERATOR_URL, CONF_ROUTE_GROUP_UUID, CONF_ROUTES, DOMAIN
 from .eta import SpeedTracker, route_distance_km
+from .history import HistoryStore
 from .models import BusPosition, Route, Stop
 from .scraper import fetch_route_group_by_uuid
 from .signalr import SignalRClient
@@ -39,6 +41,11 @@ class BusMinderCoordinator(DataUpdateCoordinator[dict[int, BusPosition]]):
         self._failure_count: int = 0
         self.is_connected: bool = True
         self.connection_failed: bool = False
+
+        self._history = HistoryStore(hass, entry.entry_id)
+        self._prev_last_stop: dict[int, Optional[int]] = {}
+        self._prev_last_stop_time: dict[int, Optional[datetime]] = {}
+        self._monitored_stops: dict[int, int] = {}
 
         effective = {**entry.data, **entry.options}
         route_data = effective.get(CONF_ROUTES, [])
@@ -68,6 +75,8 @@ class BusMinderCoordinator(DataUpdateCoordinator[dict[int, BusPosition]]):
                     resp.raise_for_status()
         except Exception as exc:
             raise ConfigEntryNotReady(f"Cannot reach {operator_url}: {exc}") from exc
+
+        await self._history.async_load()
 
         fallback_uuid = effective.get(CONF_ROUTE_GROUP_UUID, "")
         uuids = {
@@ -132,7 +141,6 @@ class BusMinderCoordinator(DataUpdateCoordinator[dict[int, BusPosition]]):
                 _LOGGER.info("BusMinder: connecting to route group %s", uuid)
                 async for position in client.stream(on_connected=self._on_sse_connected):
                     self._on_position(position)
-                # Stream ended cleanly — treat as a transient failure to reconnect
                 raise RuntimeError("SSE stream ended unexpectedly")
             except asyncio.CancelledError:  # pylint: disable=try-except-raise
                 raise
@@ -185,13 +193,79 @@ class BusMinderCoordinator(DataUpdateCoordinator[dict[int, BusPosition]]):
 
         self._speed_tracker.update(pos.trip_id, pos.lat, pos.lng, pos.received_at)
 
+        prev_stop = self._prev_last_stop.get(pos.trip_id)
+        prev_time = self._prev_last_stop_time.get(pos.trip_id)
+
+        if (
+            pos.last_stop_id is not None
+            and pos.last_stop_time is not None
+            and prev_stop is not None
+            and prev_time is not None
+            and pos.last_stop_id != prev_stop
+            and self._are_consecutive(pos.trip_id, prev_stop, pos.last_stop_id)
+        ):
+            elapsed_s = (pos.last_stop_time - prev_time).total_seconds()
+            if elapsed_s > 0:
+                self.hass.async_create_task(
+                    self._history.record_segment(pos.trip_id, prev_stop, pos.last_stop_id, elapsed_s)
+                )
+            monitored = self._monitored_stops.get(pos.trip_id)
+            if monitored is not None and pos.last_stop_id == monitored:
+                self.hass.async_create_task(
+                    self._history.record_arrival(pos.trip_id, pos.last_stop_id, pos.last_stop_time)
+                )
+
+        if pos.last_stop_id is not None and pos.last_stop_time is not None:
+            self._prev_last_stop[pos.trip_id] = pos.last_stop_id
+            self._prev_last_stop_time[pos.trip_id] = pos.last_stop_time
+
         new_data = dict(self.data or {})
         new_data[pos.trip_id] = pos
         self.async_set_updated_data(new_data)
 
+    def _are_consecutive(self, trip_id: int, from_stop_id: int, to_stop_id: int) -> bool:
+        route = self._full_routes.get(trip_id)
+        if not route:
+            return False
+        stops = sorted(route.stops, key=lambda s: s.sequence)
+        stop_ids = [s.id for s in stops]
+        try:
+            from_idx = stop_ids.index(from_stop_id)
+            to_idx = stop_ids.index(to_stop_id)
+            return to_idx == from_idx + 1
+        except ValueError:
+            return False
+
     @property
     def monitored_trip_ids(self) -> set[int]:
         return self._monitored_trip_ids
+
+    def register_monitored_stop(self, trip_id: int, stop_id: int) -> None:
+        self._monitored_stops[trip_id] = stop_id
+
+    def get_scheduled_arrival(self, trip_id: int, stop_id: int, weekday: int) -> Optional[time]:
+        return self._history.get_median_arrival(trip_id, stop_id, weekday)
+
+    def get_live_eta_seconds(self, trip_id: int, last_stop_id: int, monitored_stop_id: int) -> Optional[float]:
+        route = self._full_routes.get(trip_id)
+        if not route:
+            return None
+        stops = sorted(route.stops, key=lambda s: s.sequence)
+        stop_ids = [s.id for s in stops]
+        try:
+            last_idx = stop_ids.index(last_stop_id)
+            monitored_idx = stop_ids.index(monitored_stop_id)
+        except ValueError:
+            return None
+        if last_idx >= monitored_idx:
+            return None
+        total = 0.0
+        for i in range(last_idx, monitored_idx):
+            segment = self._history.get_median_segment(trip_id, stop_ids[i], stop_ids[i + 1])
+            if segment is None:
+                return None
+            total += segment
+        return total
 
     def get_full_route(self, trip_id: int) -> Optional[Route]:
         """Return the full route (with all stops) fetched at startup, or None if unavailable."""
@@ -220,7 +294,7 @@ class BusMinderCoordinator(DataUpdateCoordinator[dict[int, BusPosition]]):
         except ValueError:
             return None
         if last_idx >= monitored_idx:
-            return None  # already passed the monitored stop
+            return None
         return monitored_idx - last_idx
 
     def get_next_stop(self, trip_id: int, last_stop_id: int) -> Optional[Stop]:
