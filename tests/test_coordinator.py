@@ -21,8 +21,8 @@ async def test_coordinator_dispatches_position(hass: HomeAssistant, mock_config_
             on_connected()
         pos = BusPosition(
             trip_id=10001,
-            bus_id=11528,
-            bus_reg="1528",
+            bus_id=10042,
+            bus_reg="0042",
             lat=-37.820,
             lng=145.340,
             last_stop_id=10001,
@@ -39,7 +39,7 @@ async def test_coordinator_dispatches_position(hass: HomeAssistant, mock_config_
         await asyncio.sleep(0.1)  # let event loop tick
 
     assert 10001 in coordinator.data
-    assert coordinator.data[10001].bus_reg == "1528"
+    assert coordinator.data[10001].bus_reg == "0042"
 
 
 async def test_coordinator_filters_unmonitored_routes(hass: HomeAssistant, mock_config_entry):
@@ -138,7 +138,7 @@ async def test_connection_failed_clears_on_position(hass: HomeAssistant, mock_co
     pos = BusPosition(
         trip_id=10001,
         bus_id=1,
-        bus_reg="1528",
+        bus_reg="0042",
         lat=-37.820,
         lng=145.340,
         last_stop_id=10001,

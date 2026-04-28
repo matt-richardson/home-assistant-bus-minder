@@ -68,9 +68,9 @@ def test_bus_position_from_gps():
     raw = json.dumps(
         {
             "TripId": 10001,
-            "BusId": 11528,
+            "BusId": 10042,
             "Route": "nuseFuyavZHAJ?H@L?HBJ@J@",
-            "Reg": "1528",
+            "Reg": "0042",
             "Poll": 0,
             "LSID": 906802,
             "LSDT": 1774845511180,
@@ -78,7 +78,7 @@ def test_bus_position_from_gps():
     )
     pos = BusPosition.from_gps_args(raw)
     assert pos.trip_id == 10001
-    assert pos.bus_reg == "1528"
+    assert pos.bus_reg == "0042"
     assert pos.last_stop_id == 906802
     assert pos.lat is not None
     assert pos.lng is not None

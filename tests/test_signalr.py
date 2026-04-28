@@ -24,9 +24,9 @@ GPS_MSG = json.dumps(
                     json.dumps(
                         {
                             "TripId": 10001,
-                            "BusId": 11528,
+                            "BusId": 10042,
                             "Route": "nuseFuyavZHAJ?H@L?HBJ@J@",
-                            "Reg": "1528",
+                            "Reg": "0042",
                             "Poll": 0,
                             "LSID": 906802,
                             "LSDT": 1774845511180,
@@ -65,7 +65,7 @@ async def test_parse_gps_event():
         positions = client._parse_sse_payload(GPS_MSG)
     assert len(positions) == 1
     assert positions[0].trip_id == 10001
-    assert positions[0].bus_reg == "1528"
+    assert positions[0].bus_reg == "0042"
     assert positions[0].last_stop_id == 906802
 
 

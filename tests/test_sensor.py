@@ -12,7 +12,7 @@ def make_position(trip_id=10001, lat=-37.820, lng=145.340, last_stop_id=10001):
     return BusPosition(
         trip_id=trip_id,
         bus_id=1,
-        bus_reg="1528",
+        bus_reg="0042",
         lat=lat,
         lng=lng,
         last_stop_id=last_stop_id,
@@ -58,7 +58,7 @@ async def test_sensor_shows_eta_minutes(hass: HomeAssistant, mock_config_entry):
     if state.state not in (STATE_UNAVAILABLE, "unknown"):
         assert int(state.state) >= 0
     if state.state != STATE_UNAVAILABLE:
-        assert state.attributes["bus_number"] == "1528"
+        assert state.attributes["bus_number"] == "0042"
         assert state.attributes["status"] in ("approaching", "passed", "not_running")
 
 
@@ -84,7 +84,7 @@ async def test_sensor_attributes_not_running_when_stale(hass: HomeAssistant, moc
     pos = BusPosition(
         trip_id=10001,
         bus_id=1,
-        bus_reg="1528",
+        bus_reg="0042",
         lat=-37.820,
         lng=145.340,
         last_stop_id=10001,
@@ -163,7 +163,7 @@ async def test_sensor_eta_minutes_returned(hass: HomeAssistant, mock_config_entr
     pos = BusPosition(
         trip_id=10001,
         bus_id=1,
-        bus_reg="1528",
+        bus_reg="0042",
         lat=-37.760,
         lng=145.310,
         last_stop_id=10000,

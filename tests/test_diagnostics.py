@@ -11,7 +11,7 @@ def make_position(trip_id=10001):
     return BusPosition(
         trip_id=trip_id,
         bus_id=1,
-        bus_reg="1528",
+        bus_reg="0042",
         lat=-37.820,
         lng=145.340,
         last_stop_id=10001,
