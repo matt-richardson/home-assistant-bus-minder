@@ -49,6 +49,7 @@ class BusMinderCoordinator(DataUpdateCoordinator[dict[int, BusPosition]]):
 
         effective = {**entry.data, **entry.options}
         route_data = effective.get(CONF_ROUTES, [])
+        fallback_uuid = effective.get(CONF_ROUTE_GROUP_UUID, "")
         self._monitored_routes: dict[int, Route] = {
             r["trip_id"]: Route(
                 trip_id=r["trip_id"],
@@ -61,6 +62,11 @@ class BusMinderCoordinator(DataUpdateCoordinator[dict[int, BusPosition]]):
         }
         self._monitored_trip_ids: set[int] = set(self._monitored_routes.keys())
         self._full_routes: dict[int, Route] = {}
+        self._uuid_to_trip_ids: dict[str, set[int]] = {}
+        for r in route_data:
+            uuid = r.get("uuid") or fallback_uuid
+            if uuid:
+                self._uuid_to_trip_ids.setdefault(uuid, set()).add(r["trip_id"])
 
         self.etas: dict[int, Optional[float]] = {}  # trip_id → minutes or None
 
@@ -139,7 +145,7 @@ class BusMinderCoordinator(DataUpdateCoordinator[dict[int, BusPosition]]):
             try:
                 client = SignalRClient(session, uuid)
                 _LOGGER.info("BusMinder: connecting to route group %s", uuid)
-                async for position in client.stream(on_connected=self._on_sse_connected):
+                async for position in client.stream(on_connected=lambda: self._on_sse_connected(uuid)):
                     self._on_position(position)
                 raise RuntimeError("SSE stream ended unexpectedly")
             except asyncio.CancelledError:  # pylint: disable=try-except-raise
@@ -175,11 +181,25 @@ class BusMinderCoordinator(DataUpdateCoordinator[dict[int, BusPosition]]):
                 await asyncio.sleep(backoff)
                 backoff = min(backoff * 2, 60)
 
-    def _on_sse_connected(self) -> None:
+    def _on_sse_connected(self, uuid: str) -> None:
         """Called by SignalRClient when the SSE stream initializes successfully."""
         if not self.is_connected:
             self.is_connected = True
             self.async_update_listeners()
+        trip_ids = self._uuid_to_trip_ids.get(uuid, set())
+        if any(tid not in self._full_routes for tid in trip_ids):
+            self.hass.async_create_background_task(self._fetch_route_metadata(uuid), f"busminder_metadata_{uuid}")
+
+    async def _fetch_route_metadata(self, uuid: str) -> None:
+        """Fetch full route stop metadata for a route group; retried on each SSE reconnect."""
+        session = async_get_clientsession(self.hass)
+        try:
+            group = await fetch_route_group_by_uuid(session, uuid)
+            for route in group.routes:
+                self._full_routes[route.trip_id] = route
+            _LOGGER.debug("BusMinder: fetched stop metadata for route group %s", uuid)
+        except Exception:  # pylint: disable=broad-exception-caught
+            _LOGGER.debug("BusMinder: could not fetch stop metadata for route group %s", uuid)
 
     def _on_position(self, pos: BusPosition) -> None:
         if pos.trip_id not in self._monitored_trip_ids:

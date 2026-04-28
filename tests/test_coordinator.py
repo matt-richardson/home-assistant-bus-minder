@@ -397,6 +397,46 @@ async def test_get_live_eta_seconds_sums_segments(hass, mock_config_entry):
     assert result == 150.0  # 60 + 90
 
 
+async def test_metadata_refetched_on_sse_reconnect(hass, mock_config_entry):
+    """When initial route metadata fetch fails, a successful SSE connection triggers a re-fetch."""
+    from custom_components.busminder.models import Route, RouteGroup, Stop
+
+    mock_config_entry.add_to_hass(hass)
+
+    async def fake_stream(on_connected=None):
+        if on_connected is not None:
+            on_connected()
+        await asyncio.sleep(9999)
+        yield
+
+    stops = [Stop(id=9001, name="A", lat=-37.78, lng=145.33, sequence=1)]
+    fake_group = RouteGroup(
+        uuid="aaaaaaaa-0000-4000-8000-000000000001",
+        name="Test Group",
+        routes=[Route(trip_id=10001, name="Route 1001", route_number="1001", colour="", stops=stops)],
+    )
+
+    call_count = 0
+
+    async def failing_then_succeeding(*_args, **_kwargs):
+        nonlocal call_count
+        call_count += 1
+        if call_count == 1:
+            raise Exception("initial fetch failed")
+        return fake_group
+
+    with patch("custom_components.busminder.coordinator.SignalRClient") as MockClient, patch(
+        "custom_components.busminder.coordinator.fetch_route_group_by_uuid", failing_then_succeeding
+    ):
+        MockClient.return_value.stream = fake_stream
+        coordinator = BusMinderCoordinator(hass, mock_config_entry)
+        await coordinator.async_start()
+        await hass.async_block_till_done()
+
+    assert 10001 in coordinator._full_routes
+    assert coordinator._full_routes[10001].stops[0].id == 9001
+
+
 async def test_get_live_eta_seconds_returns_none_when_segment_missing(hass, mock_config_entry):
     """get_live_eta_seconds returns None when any segment has insufficient history."""
     from custom_components.busminder.models import Route, Stop
