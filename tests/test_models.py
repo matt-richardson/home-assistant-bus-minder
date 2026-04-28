@@ -82,3 +82,28 @@ def test_bus_position_from_gps():
     assert pos.last_stop_id == 906802
     assert pos.lat is not None
     assert pos.lng is not None
+
+
+def test_stop_captures_scheduled_time():
+    stop = Stop.from_metadata(
+        {
+            "id": 10001,
+            "position": "blseFopavZ",
+            "name": "Springfield High - Main Gate",
+            "num": 1,
+            "dt": "08:25",
+        }
+    )
+    assert stop.scheduled_time == "08:25"
+
+
+def test_stop_scheduled_time_none_when_absent():
+    stop = Stop.from_metadata(
+        {
+            "id": 10001,
+            "position": "blseFopavZ",
+            "name": "Springfield High - Main Gate",
+            "num": 1,
+        }
+    )
+    assert stop.scheduled_time is None

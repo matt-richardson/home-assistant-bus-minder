@@ -37,6 +37,7 @@ class Stop:
     lat: float
     lng: float
     sequence: int
+    scheduled_time: Optional[str] = None
 
     @classmethod
     def from_metadata(cls, data: dict) -> "Stop":
@@ -48,6 +49,7 @@ class Stop:
             lat=lat,
             lng=lng,
             sequence=data.get("num", 0),
+            scheduled_time=data.get("dt"),
         )
 
 
