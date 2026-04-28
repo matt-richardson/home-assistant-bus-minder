@@ -15,7 +15,7 @@ from .scraper import fetch_route_group_from_operator_url
 
 
 class BusMinderConfigFlow(ConfigFlow, domain=DOMAIN):  # type: ignore[call-arg]  # pylint: disable=abstract-method
-    VERSION = 1
+    VERSION = 2
 
     @staticmethod
     @callback

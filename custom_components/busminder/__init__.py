@@ -15,6 +15,27 @@ PLATFORMS = ["binary_sensor", "sensor", "device_tracker"]
 PARALLEL_UPDATES = 1
 
 
+async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:  # pylint: disable=unused-argument
+    """Migrate old config entry formats to current version."""
+    if entry.version == 1:
+        # v1 stored a single monitored stop at the top level; v2 stores stop info per-route.
+        stop_id = entry.data.get("monitored_stop_id")
+        stop_name = entry.data.get("monitored_stop_name", "")
+        stop_lat = entry.data.get("monitored_stop_lat", 0.0)
+        stop_lng = entry.data.get("monitored_stop_lng", 0.0)
+        new_routes = [
+            {**r, "stop_id": stop_id, "stop_name": stop_name, "stop_lat": stop_lat, "stop_lng": stop_lng}
+            for r in entry.data.get(CONF_ROUTES, [])
+        ]
+        hass.config_entries.async_update_entry(
+            entry,
+            data={**entry.data, CONF_ROUTES: new_routes},
+            version=2,
+        )
+
+    return True
+
+
 async def async_setup_entry(hass: HomeAssistant, entry: BusMinderConfigEntry) -> bool:
     coordinator = BusMinderCoordinator(hass, entry)
     await coordinator.async_start()

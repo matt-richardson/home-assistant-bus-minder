@@ -93,4 +93,4 @@ def config_entry_data():
 
 @pytest.fixture
 def mock_config_entry(config_entry_data):
-    return MockConfigEntry(domain=DOMAIN, data=config_entry_data)
+    return MockConfigEntry(domain=DOMAIN, data=config_entry_data, version=2)

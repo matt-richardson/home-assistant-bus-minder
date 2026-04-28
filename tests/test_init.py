@@ -3,8 +3,9 @@ from unittest.mock import patch
 from homeassistant.config_entries import ConfigEntryState
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import device_registry as dr
+from pytest_homeassistant_custom_component.common import MockConfigEntry
 
-from custom_components.busminder.const import CONF_ROUTES, DOMAIN
+from custom_components.busminder.const import CONF_OPERATOR_URL, CONF_ROUTE_GROUP_UUID, CONF_ROUTES, DOMAIN
 
 
 async def test_async_reload_entry(hass: HomeAssistant, mock_config_entry):
@@ -104,3 +105,37 @@ async def test_remove_config_entry_device_also_clears_options(hass: HomeAssistan
     assert 10001 not in [r["trip_id"] for r in mock_config_entry.options.get(CONF_ROUTES, [])]
     assert 10002 in [r["trip_id"] for r in mock_config_entry.options[CONF_ROUTES]]
     await hass.async_block_till_done()
+
+
+async def test_migrate_entry_v1_to_v2(hass: HomeAssistant):
+    """Migration from v1 promotes top-level monitored stop into each route entry."""
+    old_entry = MockConfigEntry(
+        domain=DOMAIN,
+        version=1,
+        data={
+            CONF_OPERATOR_URL: "https://example.com/live/",
+            CONF_ROUTE_GROUP_UUID: "aaaaaaaa-0000-4000-8000-000000000001",
+            "monitored_stop_id": 10001,
+            "monitored_stop_name": "Main Gate",
+            "monitored_stop_lat": -37.7877,
+            "monitored_stop_lng": 145.339,
+            CONF_ROUTES: [
+                {
+                    "trip_id": 10001,
+                    "name": "Route 1001",
+                    "route_number": "1001",
+                    "uuid": "aaaaaaaa-0000-4000-8000-000000000001",
+                },
+            ],
+        },
+    )
+    old_entry.add_to_hass(hass)
+    await hass.config_entries.async_setup(old_entry.entry_id)
+    await hass.async_block_till_done()
+
+    assert old_entry.version == 2
+    routes = old_entry.data[CONF_ROUTES]
+    assert routes[0]["stop_id"] == 10001
+    assert routes[0]["stop_name"] == "Main Gate"
+    assert routes[0]["stop_lat"] == -37.7877
+    assert routes[0]["stop_lng"] == 145.339
