@@ -196,7 +196,7 @@ class BusMinderCoordinator(DataUpdateCoordinator[dict[int, BusPosition]]):
         prev_stop = self._prev_last_stop.get(pos.trip_id)
         prev_time = self._prev_last_stop_time.get(pos.trip_id)
 
-        if (
+        if (  # pylint: disable=too-many-boolean-expressions
             pos.last_stop_id is not None
             and pos.last_stop_time is not None
             and prev_stop is not None
