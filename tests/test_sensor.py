@@ -306,3 +306,96 @@ async def test_scheduled_eta_unknown_when_bus_has_passed(hass: HomeAssistant, mo
     state = hass.states.get("sensor.busminder_1001_scheduled_eta")
     assert state is not None
     assert state.state == "unknown"
+
+
+async def test_live_eta_returns_sum_of_segment_medians(hass: HomeAssistant, mock_config_entry):
+    """live_eta sums historical segment times from last stop to monitored stop."""
+    from custom_components.busminder.models import Route, Stop
+
+    mock_config_entry.add_to_hass(hass)
+    await hass.config_entries.async_setup(mock_config_entry.entry_id)
+    await hass.async_block_till_done()
+
+    coordinator = mock_config_entry.runtime_data
+
+    stop_a = Stop(id=9001, name="Stop A", lat=-37.78, lng=145.33, sequence=1)
+    stop_b = Stop(id=9002, name="Stop B", lat=-37.79, lng=145.34, sequence=2)
+    monitored = Stop(id=10001, name="Springfield High - Main Gate", lat=-37.7877, lng=145.33912, sequence=3)
+    coordinator._full_routes[10001] = Route(
+        trip_id=10001,
+        name="1001 : Springfield 1 | Springfield High to City - PM",
+        route_number="1001",
+        colour="",
+        stops=[stop_a, stop_b, monitored],
+    )
+
+    # 3 mins (9001→9002) + 4 mins (9002→10001) = 7 mins
+    coordinator._history._data["10001:9001:9002"] = [180.0, 180.0, 180.0]
+    coordinator._history._data["10001:9002:10001"] = [240.0, 240.0, 240.0]
+
+    coordinator.async_set_updated_data({10001: make_position(last_stop_id=9001)})
+    await hass.async_block_till_done()
+
+    state = hass.states.get("sensor.busminder_1001_live_eta")
+    assert state is not None
+    assert state.state == "7"
+
+
+async def test_live_eta_unknown_when_insufficient_history(hass: HomeAssistant, mock_config_entry):
+    """live_eta shows unknown when any segment has fewer than MIN_OBSERVATIONS."""
+    from custom_components.busminder.models import Route, Stop
+
+    mock_config_entry.add_to_hass(hass)
+    await hass.config_entries.async_setup(mock_config_entry.entry_id)
+    await hass.async_block_till_done()
+
+    coordinator = mock_config_entry.runtime_data
+
+    stop_a = Stop(id=9001, name="Stop A", lat=-37.78, lng=145.33, sequence=1)
+    monitored = Stop(id=10001, name="Springfield High - Main Gate", lat=-37.7877, lng=145.33912, sequence=2)
+    coordinator._full_routes[10001] = Route(
+        trip_id=10001,
+        name="1001 : Springfield 1 | Springfield High to City - PM",
+        route_number="1001",
+        colour="",
+        stops=[stop_a, monitored],
+    )
+    # Only 1 observation — below MIN_OBSERVATIONS of 3
+    coordinator._history._data["10001:9001:10001"] = [180.0]
+
+    coordinator.async_set_updated_data({10001: make_position(last_stop_id=9001)})
+    await hass.async_block_till_done()
+
+    state = hass.states.get("sensor.busminder_1001_live_eta")
+    assert state is not None
+    assert state.state == "unknown"
+
+
+async def test_live_eta_unknown_when_bus_has_passed(hass: HomeAssistant, mock_config_entry):
+    """live_eta shows unknown when last_stop_id is at or past the monitored stop."""
+    from custom_components.busminder.models import Route, Stop
+
+    mock_config_entry.add_to_hass(hass)
+    await hass.config_entries.async_setup(mock_config_entry.entry_id)
+    await hass.async_block_till_done()
+
+    coordinator = mock_config_entry.runtime_data
+
+    monitored = Stop(id=10001, name="Springfield High - Main Gate", lat=-37.7877, lng=145.33912, sequence=1)
+    stop_after = Stop(id=9099, name="Next Stop", lat=-37.80, lng=145.34, sequence=2)
+    coordinator._full_routes[10001] = Route(
+        trip_id=10001,
+        name="1001 : Springfield 1 | Springfield High to City - PM",
+        route_number="1001",
+        colour="",
+        stops=[monitored, stop_after],
+    )
+    coordinator._history._data["10001:10001:9099"] = [180.0, 180.0, 180.0]
+
+    # Bus is at the stop AFTER the monitored stop
+    coordinator.async_set_updated_data({10001: make_position(last_stop_id=9099)})
+    await hass.async_block_till_done()
+
+    state = hass.states.get("sensor.busminder_1001_live_eta")
+    assert state is not None
+    assert state.state == "unknown"

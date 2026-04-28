@@ -51,6 +51,7 @@ async def async_setup_entry(
         )
         entities.append(BusEtaSensor(coordinator, entry, route, stop))
         entities.append(BusScheduledEtaSensor(coordinator, entry, route, stop))
+        entities.append(BusLiveEtaSensor(coordinator, entry, route, stop))
         entities.append(BusNextStopSensor(coordinator, entry, route))
         entities.append(BusStopsToStopSensor(coordinator, entry, route, stop))
         entities.append(BusDistanceSensor(coordinator, entry, route, stop))
@@ -183,6 +184,61 @@ class BusScheduledEtaSensor(BusMinderEntity, SensorEntity):
         if self.coordinator.connection_failed:
             return False
         return self.coordinator.last_update_success
+
+
+class BusLiveEtaSensor(BusMinderEntity, SensorEntity):
+    _attr_native_unit_of_measurement = UnitOfTime.MINUTES
+    _attr_state_class = SensorStateClass.MEASUREMENT
+    _attr_translation_key = "live_eta"
+
+    def __init__(
+        self,
+        coordinator: BusMinderCoordinator,
+        entry: ConfigEntry,
+        route: Route,
+        monitored_stop: Stop,
+    ) -> None:
+        super().__init__(coordinator, entry, route.trip_id, route.route_number, route.name)
+        self._route = route
+        self._monitored_stop = monitored_stop
+        self._attr_unique_id = f"{entry.entry_id}_{route.trip_id}_live_eta"
+        self.entity_id = f"sensor.busminder_{route.route_number.lower()}_live_eta"
+
+    @property
+    def native_value(self) -> Optional[int]:
+        pos = self._get_position()
+        if pos is None or pos.last_stop_id is None:
+            return None
+
+        full_route = self.coordinator.get_full_route(self._route.trip_id)
+        if full_route:
+            stops = sorted(full_route.stops, key=lambda s: s.sequence)
+            stop_ids = [s.id for s in stops]
+            try:
+                last_idx = stop_ids.index(pos.last_stop_id)
+                monitored_idx = stop_ids.index(self._monitored_stop.id)
+                if last_idx >= monitored_idx:
+                    return None
+            except ValueError:
+                return None
+
+        eta_seconds = self.coordinator.get_live_eta_seconds(
+            self._route.trip_id, pos.last_stop_id, self._monitored_stop.id
+        )
+        if eta_seconds is None:
+            return None
+        return max(0, round(eta_seconds / 60))
+
+    @property
+    def available(self) -> bool:
+        if self.coordinator.connection_failed:
+            return False
+        return self.coordinator.last_update_success and self._get_position() is not None
+
+    def _get_position(self) -> Optional[BusPosition]:
+        if not self.coordinator.data:
+            return None
+        return self.coordinator.data.get(self._route.trip_id)
 
 
 class BusNextStopSensor(BusMinderEntity, SensorEntity):
