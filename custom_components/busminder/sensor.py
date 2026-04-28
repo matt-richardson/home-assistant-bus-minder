@@ -156,8 +156,11 @@ class BusScheduledEtaSensor(BusMinderEntity, SensorEntity):
         if full_route:
             for stop in full_route.stops:
                 if stop.id == self._monitored_stop.id and stop.scheduled_time:
-                    h, m = int(stop.scheduled_time[:2]), int(stop.scheduled_time[3:5])
-                    scheduled_time = time(h, m)
+                    try:
+                        h, m = int(stop.scheduled_time[:2]), int(stop.scheduled_time[3:5])
+                        scheduled_time = time(h, m)
+                    except (ValueError, IndexError):
+                        pass
                     break
 
         if scheduled_time is None:
