@@ -399,3 +399,19 @@ async def test_live_eta_unknown_when_bus_has_passed(hass: HomeAssistant, mock_co
     state = hass.states.get("sensor.busminder_1001_live_eta")
     assert state is not None
     assert state.state == "unknown"
+
+
+async def test_scheduled_eta_unavailable_when_connection_failed(hass: HomeAssistant, mock_config_entry):
+    """scheduled_eta is unavailable when coordinator.connection_failed is True."""
+    mock_config_entry.add_to_hass(hass)
+    await hass.config_entries.async_setup(mock_config_entry.entry_id)
+    await hass.async_block_till_done()
+
+    coordinator = mock_config_entry.runtime_data
+    coordinator.connection_failed = True
+    coordinator.async_set_updated_data({10001: make_position()})
+    await hass.async_block_till_done()
+
+    state = hass.states.get("sensor.busminder_1001_scheduled_eta")
+    assert state is not None
+    assert state.state == STATE_UNAVAILABLE
