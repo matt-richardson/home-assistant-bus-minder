@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import statistics
 from datetime import datetime, time
-from typing import Optional
+from typing import Any, Optional
 
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.storage import Store
@@ -17,8 +17,8 @@ class HistoryStore:
     """Persists bus arrival and inter-stop segment observations across HA restarts."""
 
     def __init__(self, hass: HomeAssistant, entry_id: str) -> None:
-        self._store = Store(hass, STORAGE_VERSION, f"busminder_history_{entry_id}")
-        self._data: dict[str, list] = {}
+        self._store: Store = Store(hass, STORAGE_VERSION, f"busminder_history_{entry_id}")
+        self._data: dict[str, list[Any]] = {}
 
     async def async_load(self) -> None:
         stored = await self._store.async_load()
