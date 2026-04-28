@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.2.0](https://github.com/matt-richardson/home-assistant-bus-minder/compare/v1.1.0...v1.2.0) (2026-04-28)
+
+
+### Features
+
+* add BusLiveEtaSensor using historical inter-stop segment times ([fb8dd27](https://github.com/matt-richardson/home-assistant-bus-minder/commit/fb8dd2774b82e2e6fe4847ae80387f9b58fea6c1))
+* add BusScheduledEtaSensor using dt field with historical median fallback ([f456daf](https://github.com/matt-richardson/home-assistant-bus-minder/commit/f456daf89a0ad87a32f0f88c0f7b81dbec23bd82))
+* add HistoryStore for persistent bus arrival and segment observations ([eca400b](https://github.com/matt-richardson/home-assistant-bus-minder/commit/eca400bf074ca9ab64de9b530cba4b6845370abb))
+* capture scheduled_time (dt) field on Stop model ([9663e92](https://github.com/matt-richardson/home-assistant-bus-minder/commit/9663e92c01db0df921417c23c228151f42a2ecc5))
+* coordinator records stop arrivals and segment times via HistoryStore ([0181132](https://github.com/matt-richardson/home-assistant-bus-minder/commit/018113280f30625a90035188b6daad604a783da2))
+* migrate config entry v1→v2 promoting shared stop into per-route data ([9a6f7f8](https://github.com/matt-richardson/home-assistant-bus-minder/commit/9a6f7f87b20541ce1a443613be0d1c945d9fccb3))
+
 ## [1.1.0](https://github.com/matt-richardson/home-assistant-bus-minder/compare/v1.0.0...v1.1.0) (2026-04-02)
 
 ### New entities
