@@ -202,3 +202,107 @@ async def test_each_sensor_gets_its_own_stop(hass: HomeAssistant, mock_config_en
     stop_by_trip = {s._route.trip_id: s._monitored_stop.id for s in sensors}
     assert stop_by_trip[10001] == 10001  # Main Gate
     assert stop_by_trip[10002] == 10003  # City Station
+
+
+async def test_scheduled_eta_uses_dt_from_stop_metadata(hass: HomeAssistant, mock_config_entry):
+    """scheduled_eta uses dt field when present on the monitored stop."""
+    from homeassistant.util import dt as dt_util
+
+    from custom_components.busminder.models import Route, Stop
+
+    mock_config_entry.add_to_hass(hass)
+    await hass.config_entries.async_setup(mock_config_entry.entry_id)
+    await hass.async_block_till_done()
+
+    coordinator = mock_config_entry.runtime_data
+    now = dt_util.now()
+    future_time = (now.replace(second=0, microsecond=0) + timedelta(minutes=10)).strftime("%H:%M")
+
+    monitored_stop = Stop(
+        id=10001,
+        name="Springfield High - Main Gate",
+        lat=-37.7877,
+        lng=145.33912,
+        sequence=3,
+        scheduled_time=future_time,
+    )
+    coordinator._full_routes[10001] = Route(
+        trip_id=10001,
+        name="1001 : Springfield 1 | Springfield High to City - PM",
+        route_number="1001",
+        colour="",
+        stops=[monitored_stop],
+    )
+
+    coordinator.async_set_updated_data({10001: make_position()})
+    await hass.async_block_till_done()
+
+    state = hass.states.get("sensor.busminder_1001_scheduled_eta")
+    assert state is not None
+    assert state.state not in ("unavailable", "unknown")
+    assert abs(int(state.state) - 10) <= 1
+
+
+async def test_scheduled_eta_falls_back_to_history(hass: HomeAssistant, mock_config_entry):
+    """scheduled_eta uses historical median when dt is absent."""
+    from homeassistant.util import dt as dt_util
+
+    mock_config_entry.add_to_hass(hass)
+    await hass.config_entries.async_setup(mock_config_entry.entry_id)
+    await hass.async_block_till_done()
+
+    coordinator = mock_config_entry.runtime_data
+    now = dt_util.now()
+    future_time = (now.replace(second=0, microsecond=0) + timedelta(minutes=15)).strftime("%H:%M")
+    weekday = now.weekday()
+
+    # Inject 3 observations at future_time (no dt on stop)
+    key = f"10001:10001:{weekday}"
+    coordinator._history._data[key] = [future_time, future_time, future_time]
+
+    coordinator.async_set_updated_data({10001: make_position()})
+    await hass.async_block_till_done()
+
+    state = hass.states.get("sensor.busminder_1001_scheduled_eta")
+    assert state is not None
+    assert state.state not in ("unavailable", "unknown")
+    assert abs(int(state.state) - 15) <= 1
+
+
+async def test_scheduled_eta_unknown_when_no_data(hass: HomeAssistant, mock_config_entry):
+    """scheduled_eta shows unknown when neither dt nor history is available."""
+    mock_config_entry.add_to_hass(hass)
+    await hass.config_entries.async_setup(mock_config_entry.entry_id)
+    await hass.async_block_till_done()
+
+    coordinator = mock_config_entry.runtime_data
+    coordinator.async_set_updated_data({10001: make_position()})
+    await hass.async_block_till_done()
+
+    state = hass.states.get("sensor.busminder_1001_scheduled_eta")
+    assert state is not None
+    assert state.state == "unknown"
+
+
+async def test_scheduled_eta_unknown_when_bus_has_passed(hass: HomeAssistant, mock_config_entry):
+    """scheduled_eta shows unknown when scheduled time is in the past."""
+    from homeassistant.util import dt as dt_util
+
+    mock_config_entry.add_to_hass(hass)
+    await hass.config_entries.async_setup(mock_config_entry.entry_id)
+    await hass.async_block_till_done()
+
+    coordinator = mock_config_entry.runtime_data
+    now = dt_util.now()
+    past_time = (now.replace(second=0, microsecond=0) - timedelta(minutes=5)).strftime("%H:%M")
+    weekday = now.weekday()
+
+    key = f"10001:10001:{weekday}"
+    coordinator._history._data[key] = [past_time, past_time, past_time]
+
+    coordinator.async_set_updated_data({10001: make_position()})
+    await hass.async_block_till_done()
+
+    state = hass.states.get("sensor.busminder_1001_scheduled_eta")
+    assert state is not None
+    assert state.state == "unknown"

@@ -3,6 +3,12 @@
     "sensor": {
       "eta": {
         "default": "mdi:bus-clock"
+      },
+      "scheduled_eta": {
+        "default": "mdi:calendar-clock"
+      },
+      "live_eta": {
+        "default": "mdi:bus-clock"
       }
     },
     "device_tracker": {

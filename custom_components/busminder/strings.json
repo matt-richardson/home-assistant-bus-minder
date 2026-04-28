@@ -91,6 +91,12 @@
       },
       "distance": {
         "name": "Distance"
+      },
+      "scheduled_eta": {
+        "name": "Scheduled ETA"
+      },
+      "live_eta": {
+        "name": "Live ETA"
       }
     }
   }
