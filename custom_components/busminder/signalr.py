@@ -109,7 +109,10 @@ class SignalRClient:
             f"{LIVE_BASE_URL}/connect",
             params=qs,
             headers={**SIGNALR_HEADERS, "Accept": "text/event-stream"},
-            timeout=aiohttp.ClientTimeout(total=None),  # long-lived connection
+            # total=None keeps the connection open indefinitely; sock_read=300 detects
+            # stale connections (e.g. after laptop sleep) by timing out if no bytes
+            # arrive within 5 minutes, triggering a reconnect via _run_sse.
+            timeout=aiohttp.ClientTimeout(total=None, sock_read=300),
         ) as resp:
             resp.raise_for_status()
             initialized = False
