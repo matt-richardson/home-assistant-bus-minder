@@ -49,12 +49,13 @@ async def async_setup_entry(
             colour="",
             stops=[stop],
         )
-        entities.append(BusEtaSensor(coordinator, entry, route, stop))
-        entities.append(BusScheduledEtaSensor(coordinator, entry, route, stop))
-        entities.append(BusLiveEtaSensor(coordinator, entry, route, stop))
-        entities.append(BusNextStopSensor(coordinator, entry, route))
-        entities.append(BusStopsToStopSensor(coordinator, entry, route, stop))
-        entities.append(BusDistanceSensor(coordinator, entry, route, stop))
+        device_name = f"{route.name} - {stop.name}"
+        entities.append(BusEtaSensor(coordinator, entry, route, stop, device_name))
+        entities.append(BusScheduledEtaSensor(coordinator, entry, route, stop, device_name))
+        entities.append(BusLiveEtaSensor(coordinator, entry, route, stop, device_name))
+        entities.append(BusNextStopSensor(coordinator, entry, route, device_name))
+        entities.append(BusStopsToStopSensor(coordinator, entry, route, stop, device_name))
+        entities.append(BusDistanceSensor(coordinator, entry, route, stop, device_name))
 
     async_add_entities(entities)
 
@@ -70,8 +71,9 @@ class BusEtaSensor(BusMinderEntity, SensorEntity):
         entry: ConfigEntry,
         route: Route,
         monitored_stop: Stop,
+        device_name: str,
     ) -> None:
-        super().__init__(coordinator, entry, route.trip_id, route.route_number, route.name)
+        super().__init__(coordinator, entry, route.trip_id, route.route_number, device_name)
         self._route = route
         self._monitored_stop = monitored_stop
         self._attr_unique_id = f"{entry.entry_id}_{route.trip_id}_eta"
@@ -137,8 +139,9 @@ class BusScheduledEtaSensor(BusMinderEntity, SensorEntity):
         entry: ConfigEntry,
         route: Route,
         monitored_stop: Stop,
+        device_name: str,
     ) -> None:
-        super().__init__(coordinator, entry, route.trip_id, route.route_number, route.name)
+        super().__init__(coordinator, entry, route.trip_id, route.route_number, device_name)
         self._route = route
         self._monitored_stop = monitored_stop
         self._attr_unique_id = f"{entry.entry_id}_{route.trip_id}_scheduled_eta"
@@ -197,8 +200,9 @@ class BusLiveEtaSensor(BusMinderEntity, SensorEntity):
         entry: ConfigEntry,
         route: Route,
         monitored_stop: Stop,
+        device_name: str,
     ) -> None:
-        super().__init__(coordinator, entry, route.trip_id, route.route_number, route.name)
+        super().__init__(coordinator, entry, route.trip_id, route.route_number, device_name)
         self._route = route
         self._monitored_stop = monitored_stop
         self._attr_unique_id = f"{entry.entry_id}_{route.trip_id}_live_eta"
@@ -249,8 +253,9 @@ class BusNextStopSensor(BusMinderEntity, SensorEntity):
         coordinator: BusMinderCoordinator,
         entry: ConfigEntry,
         route: Route,
+        device_name: str,
     ) -> None:
-        super().__init__(coordinator, entry, route.trip_id, route.route_number, route.name)
+        super().__init__(coordinator, entry, route.trip_id, route.route_number, device_name)
         self._route = route
         self._attr_unique_id = f"{entry.entry_id}_{route.trip_id}_next_stop"
         self.entity_id = f"sensor.busminder_{route.route_number.lower()}_next_stop"
@@ -285,8 +290,9 @@ class BusStopsToStopSensor(BusMinderEntity, SensorEntity):
         entry: ConfigEntry,
         route: Route,
         monitored_stop: Stop,
+        device_name: str,
     ) -> None:
-        super().__init__(coordinator, entry, route.trip_id, route.route_number, route.name)
+        super().__init__(coordinator, entry, route.trip_id, route.route_number, device_name)
         self._route = route
         self._monitored_stop = monitored_stop
         self._attr_unique_id = f"{entry.entry_id}_{route.trip_id}_stops_away"
@@ -324,8 +330,9 @@ class BusDistanceSensor(BusMinderEntity, SensorEntity):
         entry: ConfigEntry,
         route: Route,
         monitored_stop: Stop,
+        device_name: str,
     ) -> None:
-        super().__init__(coordinator, entry, route.trip_id, route.route_number, route.name)
+        super().__init__(coordinator, entry, route.trip_id, route.route_number, device_name)
         self._route = route
         self._monitored_stop = monitored_stop
         self._attr_unique_id = f"{entry.entry_id}_{route.trip_id}_distance"

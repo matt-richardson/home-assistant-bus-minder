@@ -21,14 +21,14 @@ class BusMinderEntity(CoordinatorEntity[BusMinderCoordinator]):
         entry: ConfigEntry,
         trip_id: int,
         _route_number: str,
-        route_name: str,
+        device_name: str,
     ) -> None:
         super().__init__(coordinator)
         self._trip_id = trip_id
         effective = {**entry.data, **entry.options}
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, f"{entry.entry_id}_{trip_id}")},
-            name=route_name,
+            name=device_name,
             manufacturer="BusMinder",
             entry_type=DeviceEntryType.SERVICE,
             configuration_url=effective.get(CONF_OPERATOR_URL),

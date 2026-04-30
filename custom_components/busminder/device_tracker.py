@@ -27,7 +27,13 @@ async def async_setup_entry(
 
     effective = {**entry.data, **entry.options}
     entities = [
-        BusTrackerEntity(coordinator, entry, r["trip_id"], r["route_number"], r.get("custom_route_name") or r["name"])
+        BusTrackerEntity(
+            coordinator,
+            entry,
+            r["trip_id"],
+            r["route_number"],
+            f"{r.get('custom_route_name') or r['name']} - {r.get('custom_stop_name') or r['stop_name']}",
+        )
         for r in effective.get(CONF_ROUTES, [])
     ]
     async_add_entities(entities)

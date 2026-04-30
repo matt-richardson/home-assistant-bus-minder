@@ -44,6 +44,20 @@ async def test_device_tracker_has_same_device(hass: HomeAssistant, mock_config_e
     assert entity.device_id == device.id
 
 
+async def test_device_name_is_route_and_stop(hass: HomeAssistant, mock_config_entry):
+    """Device name defaults to '<route name> - <stop name>' when no custom names are set."""
+    mock_config_entry.add_to_hass(hass)
+    await hass.config_entries.async_setup(mock_config_entry.entry_id)
+    await hass.async_block_till_done()
+
+    from homeassistant.helpers import device_registry as dr
+
+    dev_reg = dr.async_get(hass)
+    device = dev_reg.async_get_device(identifiers={("busminder", f"{mock_config_entry.entry_id}_10001")})
+    assert device is not None
+    assert device.name == "1001 : Springfield 1 | Springfield High to City - PM - Springfield High - Main Gate"
+
+
 async def test_custom_route_name_becomes_device_name(hass: HomeAssistant):
     """When custom_route_name is set, it is used as the HA device name."""
     entry = MockConfigEntry(
@@ -77,4 +91,4 @@ async def test_custom_route_name_becomes_device_name(hass: HomeAssistant):
     dev_reg = dr.async_get(hass)
     device = dev_reg.async_get_device(identifiers={("busminder", f"{entry.entry_id}_10001")})
     assert device is not None
-    assert device.name == "My Bus"
+    assert device.name == "My Bus - Front Gate"

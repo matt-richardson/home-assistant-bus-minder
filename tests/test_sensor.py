@@ -117,7 +117,7 @@ async def test_sensor_extra_attrs_no_position(hass: HomeAssistant, mock_config_e
     coordinator = mock_config_entry.runtime_data
     monitored_stop = Stop(id=10001, name="Main Gate", lat=-37.787, lng=145.339, sequence=1)
     route = Route(trip_id=10001, name="Test", route_number="1001", colour="", stops=[monitored_stop])
-    sensor = BusEtaSensor(coordinator, mock_config_entry, route, monitored_stop)
+    sensor = BusEtaSensor(coordinator, mock_config_entry, route, monitored_stop, "Test - Main Gate")
 
     # No coordinator data → _get_position returns None → should return not_running
     coordinator.async_set_updated_data({})
@@ -206,7 +206,8 @@ async def test_each_sensor_gets_its_own_stop(hass: HomeAssistant, mock_config_en
 
 async def test_scheduled_eta_uses_dt_from_stop_metadata(hass: HomeAssistant, mock_config_entry):
     """scheduled_eta uses dt field when present on the monitored stop."""
-    from homeassistant.util import dt as dt_util
+    from datetime import timezone
+    from unittest.mock import patch
 
     from custom_components.busminder.models import Route, Stop
 
@@ -215,8 +216,9 @@ async def test_scheduled_eta_uses_dt_from_stop_metadata(hass: HomeAssistant, moc
     await hass.async_block_till_done()
 
     coordinator = mock_config_entry.runtime_data
-    now = dt_util.now()
-    future_time = (now.replace(second=0, microsecond=0) + timedelta(minutes=10)).strftime("%H:%M")
+    # Pin "now" to 08:00 local so +10 min never crosses midnight.
+    fixed_now = datetime(2026, 4, 29, 8, 0, 0, tzinfo=timezone.utc)
+    future_time = "08:10"
 
     monitored_stop = Stop(
         id=10001,
@@ -234,10 +236,11 @@ async def test_scheduled_eta_uses_dt_from_stop_metadata(hass: HomeAssistant, moc
         stops=[monitored_stop],
     )
 
-    coordinator.async_set_updated_data({10001: make_position()})
-    await hass.async_block_till_done()
+    with patch("custom_components.busminder.sensor.dt_util.now", return_value=fixed_now):
+        coordinator.async_set_updated_data({10001: make_position()})
+        await hass.async_block_till_done()
+        state = hass.states.get("sensor.busminder_1001_scheduled_eta")
 
-    state = hass.states.get("sensor.busminder_1001_scheduled_eta")
     assert state is not None
     assert state.state not in ("unavailable", "unknown")
     assert abs(int(state.state) - 10) <= 1
@@ -245,25 +248,27 @@ async def test_scheduled_eta_uses_dt_from_stop_metadata(hass: HomeAssistant, moc
 
 async def test_scheduled_eta_falls_back_to_history(hass: HomeAssistant, mock_config_entry):
     """scheduled_eta uses historical median when dt is absent."""
-    from homeassistant.util import dt as dt_util
+    from datetime import timezone
+    from unittest.mock import patch
 
     mock_config_entry.add_to_hass(hass)
     await hass.config_entries.async_setup(mock_config_entry.entry_id)
     await hass.async_block_till_done()
 
     coordinator = mock_config_entry.runtime_data
-    now = dt_util.now()
-    future_time = (now.replace(second=0, microsecond=0) + timedelta(minutes=15)).strftime("%H:%M")
-    weekday = now.weekday()
+    fixed_now = datetime(2026, 4, 29, 8, 0, 0, tzinfo=timezone.utc)
+    future_time = "08:15"
+    weekday = fixed_now.weekday()
 
     # Inject 3 observations at future_time (no dt on stop)
     key = f"10001:10001:{weekday}"
     coordinator._history._data[key] = [future_time, future_time, future_time]
 
-    coordinator.async_set_updated_data({10001: make_position()})
-    await hass.async_block_till_done()
+    with patch("custom_components.busminder.sensor.dt_util.now", return_value=fixed_now):
+        coordinator.async_set_updated_data({10001: make_position()})
+        await hass.async_block_till_done()
+        state = hass.states.get("sensor.busminder_1001_scheduled_eta")
 
-    state = hass.states.get("sensor.busminder_1001_scheduled_eta")
     assert state is not None
     assert state.state not in ("unavailable", "unknown")
     assert abs(int(state.state) - 15) <= 1
