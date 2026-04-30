@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.3.0](https://github.com/matt-richardson/home-assistant-bus-minder/compare/v1.2.0...v1.3.0) (2026-04-30)
+
+
+### Features
+
+* use '&lt;route&gt; - <stop>' as device name, honouring custom names ([6f3e4db](https://github.com/matt-richardson/home-assistant-bus-minder/commit/6f3e4dbb755b8ecd2ad1ef3222328012101d285a))
+
+
+### Bug Fixes
+
+* add sock_read timeout to SSE connection to recover after laptop sleep ([ce8c3d8](https://github.com/matt-richardson/home-assistant-bus-minder/commit/ce8c3d88c96ed79eef17e8174c4ce9b33f4e3967))
+* derive SSE read timeout from negotiated KeepAliveTimeout ([cdaf631](https://github.com/matt-richardson/home-assistant-bus-minder/commit/cdaf631b86c4b86c6491bb46433c2fce64e2d8fe))
+* retry route metadata fetch on SSE reconnect ([fee13ea](https://github.com/matt-richardson/home-assistant-bus-minder/commit/fee13ea4b1e38c27c3bb1e23a37734ae96764f1c))
+
 ## [1.2.0](https://github.com/matt-richardson/home-assistant-bus-minder/compare/v1.1.0...v1.2.0) (2026-04-28)
 
 
