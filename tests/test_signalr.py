@@ -11,7 +11,7 @@ ROUTE_UUID = "aaaaaaaa-0000-4000-8000-000000000001"
 TOKEN = "abc123token=="
 ENCODED_TOKEN = "abc123token%3D%3D"
 
-NEGOTIATE_RESP = {"ConnectionToken": TOKEN, "ProtocolVersion": "2.0"}
+NEGOTIATE_RESP = {"ConnectionToken": TOKEN, "ProtocolVersion": "2.0", "KeepAliveTimeout": 20.0}
 START_RESP = '{ "Response": "started" }'
 REGISTER_RESP = '{"I":"0"}'
 
@@ -55,8 +55,9 @@ async def test_negotiate(mock_aiohttp):
     )
     async with aiohttp.ClientSession() as session:
         client = SignalRClient(session, ROUTE_UUID)
-        token = await client._negotiate()
+        token, keepalive_s = await client._negotiate()
     assert token == TOKEN
+    assert keepalive_s == 20.0
 
 
 async def test_parse_gps_event():

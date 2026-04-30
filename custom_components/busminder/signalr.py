@@ -32,8 +32,8 @@ class SignalRClient:
             "connectionData": _CONNECTION_DATA,
         }
 
-    async def _negotiate(self) -> str:
-        """Negotiate a connection token. Returns the raw (unencoded) token."""
+    async def _negotiate(self) -> tuple[str, float]:
+        """Negotiate a connection token. Returns (token, keepalive_timeout_s)."""
         async with self._session.get(
             f"{LIVE_BASE_URL}/negotiate",
             params={"clientProtocol": "2.0", "connectionData": _CONNECTION_DATA},
@@ -42,7 +42,7 @@ class SignalRClient:
         ) as resp:
             resp.raise_for_status()
             data = await resp.json(content_type=None)
-            return data["ConnectionToken"]
+            return data["ConnectionToken"], float(data.get("KeepAliveTimeout", 20.0))
 
     async def _start(self, token: str) -> None:
         async with self._session.get(
@@ -102,17 +102,18 @@ class SignalRClient:
         actively read before it will accept the /start and /register POST.
         We read until "initialized", sleep 2s, then send start + register inline.
         """
-        token = await self._negotiate()
+        token, keepalive_s = await self._negotiate()
         qs = self._qs(token)
+        # Allow 3× the server's keepalive interval before declaring the connection
+        # stale. The server sends {} every keepalive_s seconds, so genuine silence
+        # beyond that means the TCP connection is dead (e.g. after laptop sleep).
+        sock_read_timeout = keepalive_s * 3
 
         async with self._session.get(
             f"{LIVE_BASE_URL}/connect",
             params=qs,
             headers={**SIGNALR_HEADERS, "Accept": "text/event-stream"},
-            # total=None keeps the connection open indefinitely; sock_read=300 detects
-            # stale connections (e.g. after laptop sleep) by timing out if no bytes
-            # arrive within 5 minutes, triggering a reconnect via _run_sse.
-            timeout=aiohttp.ClientTimeout(total=None, sock_read=300),
+            timeout=aiohttp.ClientTimeout(total=None, sock_read=sock_read_timeout),
         ) as resp:
             resp.raise_for_status()
             initialized = False
