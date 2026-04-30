@@ -188,7 +188,10 @@ class BusMinderCoordinator(DataUpdateCoordinator[dict[int, BusPosition]]):
             self.async_update_listeners()
         trip_ids = self._uuid_to_trip_ids.get(uuid, set())
         if any(tid not in self._full_routes for tid in trip_ids):
+            _LOGGER.debug("BusMinder: SSE connected for %s — route metadata missing, fetching now", uuid)
             self.hass.async_create_background_task(self._fetch_route_metadata(uuid), f"busminder_metadata_{uuid}")
+        else:
+            _LOGGER.debug("BusMinder: SSE connected for %s — route metadata already loaded", uuid)
 
     async def _fetch_route_metadata(self, uuid: str) -> None:
         """Fetch full route stop metadata for a route group; retried on each SSE reconnect."""
@@ -216,24 +219,51 @@ class BusMinderCoordinator(DataUpdateCoordinator[dict[int, BusPosition]]):
         prev_stop = self._prev_last_stop.get(pos.trip_id)
         prev_time = self._prev_last_stop_time.get(pos.trip_id)
 
-        if (  # pylint: disable=too-many-boolean-expressions
-            pos.last_stop_id is not None
-            and pos.last_stop_time is not None
-            and prev_stop is not None
-            and prev_time is not None
-            and pos.last_stop_id != prev_stop
-            and self._are_consecutive(pos.trip_id, prev_stop, pos.last_stop_id)
-        ):
-            elapsed_s = (pos.last_stop_time - prev_time).total_seconds()
-            if elapsed_s > 0:
-                self.hass.async_create_task(
-                    self._history.record_segment(pos.trip_id, prev_stop, pos.last_stop_id, elapsed_s)
+        if pos.last_stop_id is not None and pos.last_stop_id != prev_stop:
+            _LOGGER.debug(
+                "BusMinder: trip %d stop transition %s→%s (last_stop_time=%s, full_route_loaded=%s)",
+                pos.trip_id,
+                prev_stop,
+                pos.last_stop_id,
+                pos.last_stop_time,
+                pos.trip_id in self._full_routes,
+            )
+            if pos.last_stop_time is None:
+                _LOGGER.debug("BusMinder: trip %d skipping record — last_stop_time is None", pos.trip_id)
+            elif prev_stop is None or prev_time is None:
+                _LOGGER.debug("BusMinder: trip %d skipping record — no previous stop data yet", pos.trip_id)
+            elif pos.trip_id not in self._full_routes:
+                _LOGGER.debug("BusMinder: trip %d skipping record — full route not loaded yet", pos.trip_id)
+            elif not self._are_consecutive(pos.trip_id, prev_stop, pos.last_stop_id):
+                _LOGGER.debug(
+                    "BusMinder: trip %d skipping record — stops %d→%d are not consecutive in route",
+                    pos.trip_id,
+                    prev_stop,
+                    pos.last_stop_id,
                 )
-            monitored = self._monitored_stops.get(pos.trip_id)
-            if monitored is not None and pos.last_stop_id == monitored:
-                self.hass.async_create_task(
-                    self._history.record_arrival(pos.trip_id, pos.last_stop_id, pos.last_stop_time)
-                )
+            else:
+                elapsed_s = (pos.last_stop_time - prev_time).total_seconds()
+                if elapsed_s > 0:
+                    _LOGGER.debug(
+                        "BusMinder: trip %d recording segment %d→%d (%.0fs)",
+                        pos.trip_id,
+                        prev_stop,
+                        pos.last_stop_id,
+                        elapsed_s,
+                    )
+                    self.hass.async_create_task(
+                        self._history.record_segment(pos.trip_id, prev_stop, pos.last_stop_id, elapsed_s)
+                    )
+                monitored = self._monitored_stops.get(pos.trip_id)
+                if monitored is not None and pos.last_stop_id == monitored:
+                    _LOGGER.debug(
+                        "BusMinder: trip %d recording arrival at monitored stop %d",
+                        pos.trip_id,
+                        monitored,
+                    )
+                    self.hass.async_create_task(
+                        self._history.record_arrival(pos.trip_id, pos.last_stop_id, pos.last_stop_time)
+                    )
 
         if pos.last_stop_id is not None and pos.last_stop_time is not None:
             self._prev_last_stop[pos.trip_id] = pos.last_stop_id
