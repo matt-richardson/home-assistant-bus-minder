@@ -291,24 +291,26 @@ async def test_scheduled_eta_unknown_when_no_data(hass: HomeAssistant, mock_conf
 
 async def test_scheduled_eta_unknown_when_bus_has_passed(hass: HomeAssistant, mock_config_entry):
     """scheduled_eta shows unknown when scheduled time is in the past."""
-    from homeassistant.util import dt as dt_util
+    from datetime import timezone
+    from unittest.mock import patch
 
     mock_config_entry.add_to_hass(hass)
     await hass.config_entries.async_setup(mock_config_entry.entry_id)
     await hass.async_block_till_done()
 
     coordinator = mock_config_entry.runtime_data
-    now = dt_util.now()
-    past_time = (now.replace(second=0, microsecond=0) - timedelta(minutes=5)).strftime("%H:%M")
-    weekday = now.weekday()
+    fixed_now = datetime(2026, 4, 29, 8, 0, 0, tzinfo=timezone.utc)
+    past_time = "07:55"
+    weekday = fixed_now.weekday()
 
     key = f"10001:10001:{weekday}"
     coordinator._history._data[key] = [past_time, past_time, past_time]
 
-    coordinator.async_set_updated_data({10001: make_position()})
-    await hass.async_block_till_done()
+    with patch("custom_components.busminder.sensor.dt_util.now", return_value=fixed_now):
+        coordinator.async_set_updated_data({10001: make_position()})
+        await hass.async_block_till_done()
+        state = hass.states.get("sensor.busminder_1001_scheduled_eta")
 
-    state = hass.states.get("sensor.busminder_1001_scheduled_eta")
     assert state is not None
     assert state.state == "unknown"
 
