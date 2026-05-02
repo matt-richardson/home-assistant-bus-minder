@@ -150,7 +150,7 @@ async def test_full_flow_second_route_defaults_to_first_stop(hass: HomeAssistant
 async def test_options_flow_shows_url_form(hass: HomeAssistant, mock_config_entry):
     """Options flow opens with the URL form."""
 
-    async def empty_stream(on_connected=None):
+    async def empty_stream(on_connected=None, on_heartbeat=None):
         return
         yield
 
@@ -168,7 +168,7 @@ async def test_options_flow_shows_url_form(hass: HomeAssistant, mock_config_entr
 async def test_options_flow_full_reconfiguration(hass: HomeAssistant, mock_config_entry, mock_scraper):
     """Options flow full 3-step sequence saves new config to entry.options."""
 
-    async def empty_stream(on_connected=None):
+    async def empty_stream(on_connected=None, on_heartbeat=None):
         return
         yield
 
@@ -202,7 +202,7 @@ async def test_options_flow_full_reconfiguration(hass: HomeAssistant, mock_confi
 async def test_options_flow_cannot_connect(hass: HomeAssistant, mock_config_entry):
     """Options flow shows cannot_connect error on bad URL."""
 
-    async def empty_stream(on_connected=None):
+    async def empty_stream(on_connected=None, on_heartbeat=None):
         return
         yield
 
@@ -288,7 +288,7 @@ async def test_step_pick_stop_unknown_stop_id(hass: HomeAssistant, mock_scraper)
 async def test_options_flow_unknown_error(hass: HomeAssistant, mock_config_entry):
     """Options flow handles unexpected errors with the 'unknown' error key."""
 
-    async def empty_stream(on_connected=None):
+    async def empty_stream(on_connected=None, on_heartbeat=None):
         return
         yield
 
@@ -316,7 +316,7 @@ async def test_options_flow_unknown_error(hass: HomeAssistant, mock_config_entry
 async def test_options_flow_no_busminder(hass: HomeAssistant, mock_config_entry):
     """Options flow shows no_busminder error when no iframe found."""
 
-    async def empty_stream(on_connected=None):
+    async def empty_stream(on_connected=None, on_heartbeat=None):
         return
         yield
 
@@ -344,7 +344,7 @@ async def test_options_flow_no_busminder(hass: HomeAssistant, mock_config_entry)
 async def test_options_flow_empty_routes_shows_error(hass: HomeAssistant, mock_config_entry, mock_scraper):
     """Options flow shows unknown error when no routes are selected."""
 
-    async def empty_stream(on_connected=None):
+    async def empty_stream(on_connected=None, on_heartbeat=None):
         return
         yield
 
@@ -373,7 +373,7 @@ async def test_options_flow_empty_routes_shows_error(hass: HomeAssistant, mock_c
 async def test_options_flow_unknown_stop_id(hass: HomeAssistant, mock_config_entry, mock_scraper):
     """Options flow shows unknown error when an invalid stop_id is submitted."""
 
-    async def empty_stream(on_connected=None):
+    async def empty_stream(on_connected=None, on_heartbeat=None):
         return
         yield
 
@@ -408,7 +408,7 @@ async def test_options_flow_each_route_defaults_to_its_own_saved_stop(
 ):
     """Each route's stop picker defaults to that route's previously saved stop, not the first route's."""
 
-    async def empty_stream(on_connected=None):
+    async def empty_stream(on_connected=None, on_heartbeat=None):
         return
         yield
 

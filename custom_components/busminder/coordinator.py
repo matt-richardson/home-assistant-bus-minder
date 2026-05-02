@@ -145,7 +145,10 @@ class BusMinderCoordinator(DataUpdateCoordinator[dict[int, BusPosition]]):
             try:
                 client = SignalRClient(session, uuid)
                 _LOGGER.info("BusMinder: connecting to route group %s", uuid)
-                async for position in client.stream(on_connected=lambda: self._on_sse_connected(uuid)):
+                async for position in client.stream(
+                    on_connected=lambda: self._on_sse_connected(uuid),
+                    on_heartbeat=self._on_sse_heartbeat,
+                ):
                     self._on_position(position)
                 raise RuntimeError("SSE stream ended unexpectedly")
             except asyncio.CancelledError:  # pylint: disable=try-except-raise
@@ -192,6 +195,14 @@ class BusMinderCoordinator(DataUpdateCoordinator[dict[int, BusPosition]]):
             self.hass.async_create_background_task(self._fetch_route_metadata(uuid), f"busminder_metadata_{uuid}")
         else:
             _LOGGER.debug("BusMinder: SSE connected for %s — route metadata already loaded", uuid)
+
+    def _on_sse_heartbeat(self) -> None:
+        """Called for every SSE data line received after init. Confirms the stream is alive."""
+        if self.connection_failed:
+            self.connection_failed = False
+            self.async_update_listeners()
+            ir.async_delete_issue(self.hass, DOMAIN, "connection_failed")
+        self._failure_count = 0
 
     async def _fetch_route_metadata(self, uuid: str) -> None:
         """Fetch full route stop metadata for a route group; retried on each SSE reconnect."""

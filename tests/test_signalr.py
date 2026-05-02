@@ -243,3 +243,41 @@ async def test_stream_calls_on_connected_after_init(mock_aiohttp):
                 break
 
     assert len(connected_calls) == 1
+
+
+async def test_stream_calls_on_heartbeat_for_keepalive_and_data(mock_aiohttp):
+    """on_heartbeat fires for every SSE data line received after init — including {} keepalives."""
+    import urllib.parse
+
+    token = TOKEN
+
+    neg_qs = urllib.parse.urlencode({"clientProtocol": "2.0", "connectionData": '[{"name":"broadcasthub"}]'})
+    mock_aiohttp.get(f"https://live.busminder.com.au/signalr/negotiate?{neg_qs}", payload=NEGOTIATE_RESP)
+
+    # initialized → {} keepalive → {} keepalive → GPS message
+    sse_lines = (f"data: initialized\n\n" f"data: {{}}\n\n" f"data: {{}}\n\n" f"data: {GPS_MSG}\n\n").encode()
+    connect_qs = urllib.parse.urlencode(
+        {
+            "transport": "serverSentEvents",
+            "clientProtocol": "2.0",
+            "connectionToken": token,
+            "connectionData": '[{"name":"broadcasthub"}]',
+        }
+    )
+    mock_aiohttp.get(
+        f"https://live.busminder.com.au/signalr/connect?{connect_qs}",
+        body=sse_lines,
+        content_type="text/event-stream",
+    )
+    mock_aiohttp.get(f"https://live.busminder.com.au/signalr/start?{connect_qs}", payload={"Response": "started"})
+    mock_aiohttp.post(f"https://live.busminder.com.au/signalr/send?{connect_qs}", payload={"I": "0"})
+
+    heartbeats = []
+    async with aiohttp.ClientSession() as session:
+        client = SignalRClient(session, ROUTE_UUID)
+        with patch("custom_components.busminder.signalr.asyncio.sleep"):
+            async for _ in client.stream(on_heartbeat=lambda: heartbeats.append(1)):
+                break  # break on first yielded position; both keepalives must already have fired
+
+    # Two {} keepalives plus the GPS message line — three heartbeats
+    assert len(heartbeats) == 3

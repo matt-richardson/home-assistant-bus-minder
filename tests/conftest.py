@@ -39,7 +39,7 @@ def mock_coordinator_signalr():
     relevant patches inside their own context.
     """
 
-    async def _hold_open(on_connected=None):
+    async def _hold_open(on_connected=None, on_heartbeat=None):
         if on_connected is not None:
             on_connected()
         await asyncio.sleep(999999)

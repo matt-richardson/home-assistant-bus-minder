@@ -16,7 +16,7 @@ async def test_coordinator_dispatches_position(hass: HomeAssistant, mock_config_
     """GPS events from SignalR should update coordinator.data."""
     mock_config_entry.add_to_hass(hass)
 
-    async def fake_stream(on_connected=None):
+    async def fake_stream(on_connected=None, on_heartbeat=None):
         if on_connected is not None:
             on_connected()
         pos = BusPosition(
@@ -45,7 +45,7 @@ async def test_coordinator_dispatches_position(hass: HomeAssistant, mock_config_
 async def test_coordinator_filters_unmonitored_routes(hass: HomeAssistant, mock_config_entry):
     """GPS events for trip IDs not in config should be ignored."""
 
-    async def fake_stream(on_connected=None):
+    async def fake_stream(on_connected=None, on_heartbeat=None):
         if on_connected is not None:
             on_connected()
         pos = BusPosition(
@@ -74,7 +74,7 @@ async def test_repair_issue_raised_after_three_failures(hass: HomeAssistant, moc
     """Repair issue is created after RECONNECT_THRESHOLD consecutive SSE failures."""
     from homeassistant.helpers import issue_registry as ir
 
-    async def failing_stream(on_connected=None):
+    async def failing_stream(on_connected=None, on_heartbeat=None):
         raise Exception("SSE connection lost")
         yield  # make it an async generator
 
@@ -154,6 +154,36 @@ async def test_connection_failed_clears_on_position(hass: HomeAssistant, mock_co
     assert issue_reg.async_get_issue("busminder", "connection_failed") is None
 
 
+async def test_connection_failed_clears_on_heartbeat(hass: HomeAssistant, mock_config_entry):
+    """connection_failed clears on SSE heartbeat (e.g. {} keepalive) without needing a monitored position."""
+    from homeassistant.helpers import issue_registry as ir
+
+    mock_config_entry.add_to_hass(hass)
+    await hass.config_entries.async_setup(mock_config_entry.entry_id)
+    await hass.async_block_till_done()
+
+    coordinator = mock_config_entry.runtime_data
+    coordinator.connection_failed = True
+    coordinator._failure_count = 5
+    ir.async_create_issue(
+        hass,
+        "busminder",
+        "connection_failed",
+        is_fixable=False,
+        severity=ir.IssueSeverity.WARNING,
+        translation_key="connection_failed",
+        translation_placeholders={"operator_url": "https://example.com/"},
+    )
+
+    coordinator._on_sse_heartbeat()
+    await hass.async_block_till_done()
+
+    assert coordinator.connection_failed is False
+    assert coordinator._failure_count == 0
+    issue_reg = ir.async_get(hass)
+    assert issue_reg.async_get_issue("busminder", "connection_failed") is None
+
+
 async def test_config_entry_not_ready_when_unreachable(hass: HomeAssistant, mock_config_entry):
     """ConfigEntryNotReady is raised when the operator URL is unreachable at setup."""
     mock_resp = MagicMock()
@@ -182,7 +212,7 @@ async def test_coordinator_records_segment_on_stop_transition(hass, mock_config_
 
     mock_config_entry.add_to_hass(hass)
 
-    async def fake_stream(on_connected=None):
+    async def fake_stream(on_connected=None, on_heartbeat=None):
         if on_connected is not None:
             on_connected()
         await asyncio.sleep(9999)
@@ -244,7 +274,7 @@ async def test_coordinator_records_arrival_at_monitored_stop(hass, mock_config_e
 
     mock_config_entry.add_to_hass(hass)
 
-    async def fake_stream(on_connected=None):
+    async def fake_stream(on_connected=None, on_heartbeat=None):
         if on_connected is not None:
             on_connected()
         await asyncio.sleep(9999)
@@ -305,7 +335,7 @@ async def test_coordinator_skips_segment_for_non_consecutive_stops(hass, mock_co
 
     mock_config_entry.add_to_hass(hass)
 
-    async def fake_stream(on_connected=None):
+    async def fake_stream(on_connected=None, on_heartbeat=None):
         if on_connected is not None:
             on_connected()
         await asyncio.sleep(9999)
@@ -365,7 +395,7 @@ async def test_get_live_eta_seconds_sums_segments(hass, mock_config_entry):
 
     mock_config_entry.add_to_hass(hass)
 
-    async def fake_stream(on_connected=None):
+    async def fake_stream(on_connected=None, on_heartbeat=None):
         if on_connected is not None:
             on_connected()
         await asyncio.sleep(9999)
@@ -403,7 +433,7 @@ async def test_metadata_refetched_on_sse_reconnect(hass, mock_config_entry):
 
     mock_config_entry.add_to_hass(hass)
 
-    async def fake_stream(on_connected=None):
+    async def fake_stream(on_connected=None, on_heartbeat=None):
         if on_connected is not None:
             on_connected()
         await asyncio.sleep(9999)
@@ -443,7 +473,7 @@ async def test_get_live_eta_seconds_returns_none_when_segment_missing(hass, mock
 
     mock_config_entry.add_to_hass(hass)
 
-    async def fake_stream(on_connected=None):
+    async def fake_stream(on_connected=None, on_heartbeat=None):
         if on_connected is not None:
             on_connected()
         await asyncio.sleep(9999)

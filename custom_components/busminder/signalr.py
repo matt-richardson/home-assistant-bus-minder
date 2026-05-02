@@ -93,7 +93,11 @@ class SignalRClient:
                 _LOGGER.debug("Failed to parse GPS message: %s", exc)
         return positions
 
-    async def stream(self, on_connected: Optional[Callable[[], None]] = None) -> AsyncIterator[BusPosition]:
+    async def stream(
+        self,
+        on_connected: Optional[Callable[[], None]] = None,
+        on_heartbeat: Optional[Callable[[], None]] = None,
+    ) -> AsyncIterator[BusPosition]:
         """
         Connect to BusMinder SignalR and yield BusPosition updates indefinitely.
         Handles the full negotiation + SSE open + start + register sequence.
@@ -133,6 +137,9 @@ class SignalRClient:
                     if on_connected is not None:
                         on_connected()
                     continue
+
+                if on_heartbeat is not None:
+                    on_heartbeat()
 
                 for pos in self._parse_sse_payload(payload):
                     yield pos

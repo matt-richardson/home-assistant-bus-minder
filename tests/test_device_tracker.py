@@ -34,7 +34,7 @@ async def test_device_tracker_registered(hass: HomeAssistant, mock_config_entry)
 
 
 async def test_device_tracker_source_type(hass: HomeAssistant, mock_config_entry):
-    async def fake_stream(on_connected=None):
+    async def fake_stream(on_connected=None, on_heartbeat=None):
         if on_connected is not None:
             on_connected()
         yield make_position()
