@@ -1,4 +1,4 @@
-pytest-homeassistant-custom-component>=0.13.0
+pytest-homeassistant-custom-component==0.13.325  # tracks HA 2026.4.0 stable; bump manually to avoid auto-pulling beta HA versions
 aioresponses>=0.7.6
 pytest-asyncio>=0.23.0
 pytest-cov>=4.0

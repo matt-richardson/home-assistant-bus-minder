@@ -2,7 +2,7 @@ rules:
   # Bronze
   action-setup: exempt # No custom actions defined
   appropriate-polling: exempt # Push-based (iot_class: cloud_push), no polling
-  brands: todo # Not yet submitted to the HA brands repository
+  brands: done # Embedded in custom_components/busminder/brand/ (HA 2026.3+ serves these locally)
   common-modules: done
   config-flow: done
   config-flow-test-coverage: done
