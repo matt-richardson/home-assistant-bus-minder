@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.1](https://github.com/matt-richardson/home-assistant-bus-minder/compare/v1.3.0...v1.3.1) (2026-05-02)
+
+
+### Bug Fixes
+
+* clear connection_failed on SSE heartbeat, not just monitored positions ([7ae4afe](https://github.com/matt-richardson/home-assistant-bus-minder/commit/7ae4afeddafaa8b5d21ce5bb1263a07b83d13232))
+
 ## [1.3.0](https://github.com/matt-richardson/home-assistant-bus-minder/compare/v1.2.0...v1.3.0) (2026-04-30)
 
 
