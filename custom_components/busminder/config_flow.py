@@ -8,10 +8,17 @@ from homeassistant.core import callback
 from homeassistant.helpers import selector
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
-from .const import CONF_OPERATOR_URL, CONF_ROUTE_GROUP_NAME, CONF_ROUTE_GROUP_UUID, CONF_ROUTES, DOMAIN
+from .const import (
+    CONF_MANUAL_LINKS,
+    CONF_OPERATOR_URL,
+    CONF_ROUTE_GROUP_NAME,
+    CONF_ROUTE_GROUP_UUID,
+    CONF_ROUTES,
+    DOMAIN,
+)
 from .exceptions import BusMinderConnectionError
 from .models import Route, RouteGroup
-from .scraper import fetch_route_group_from_operator_url
+from .scraper import extract_uuids, fetch_route_group_from_operator_url, fetch_route_groups_by_uuids
 
 
 class BusMinderConfigFlow(ConfigFlow, domain=DOMAIN):  # type: ignore[call-arg]  # pylint: disable=abstract-method
@@ -31,36 +38,52 @@ class BusMinderConfigFlow(ConfigFlow, domain=DOMAIN):  # type: ignore[call-arg] 
         self._last_confirmed_stop_id: Optional[int] = None
 
     async def async_step_user(self, user_input: Optional[dict[str, Any]] = None) -> ConfigFlowResult:
-        errors: dict[str, str] = {}
-
         if user_input is not None:
             url = user_input[CONF_OPERATOR_URL].strip()
             try:
                 session = async_get_clientsession(self.hass)
                 group = await fetch_route_group_from_operator_url(session, url)
-            except BusMinderConnectionError as exc:
-                msg = str(exc)
-                if "Cannot connect" in msg:
-                    errors["base"] = "cannot_connect"
-                elif "No BusMinder" in msg:
-                    errors["base"] = "no_busminder"
-                else:
-                    errors["base"] = "unknown"
             except Exception:  # pylint: disable=broad-exception-caught
-                errors["base"] = "unknown"
+                # Operator page unreadable (often Cloudflare bot protection).
+                # Fall through to manual entry of BusMinder link(s)/UUID(s).
+                return await self.async_step_manual()
             else:
                 await self.async_set_unique_id(group.uuid)
                 self._abort_if_unique_id_configured()
-
                 self._operator_url = url
                 self._route_group = group
                 return await self.async_step_pick_routes()
 
         return self.async_show_form(
             step_id="user",
+            data_schema=vol.Schema({vol.Required(CONF_OPERATOR_URL): str}),
+        )
+
+    async def async_step_manual(self, user_input: Optional[dict[str, Any]] = None) -> ConfigFlowResult:
+        errors: dict[str, str] = {}
+
+        if user_input is not None:
+            uuids = extract_uuids(user_input.get(CONF_MANUAL_LINKS, ""))
+            if not uuids:
+                errors["base"] = "no_uuids"
+            else:
+                try:
+                    session = async_get_clientsession(self.hass)
+                    group = await fetch_route_groups_by_uuids(session, uuids)
+                except Exception:  # pylint: disable=broad-exception-caught
+                    errors["base"] = "cannot_connect"
+                else:
+                    await self.async_set_unique_id(group.uuid)
+                    self._abort_if_unique_id_configured()
+                    self._operator_url = ""
+                    self._route_group = group
+                    return await self.async_step_pick_routes()
+
+        return self.async_show_form(
+            step_id="manual",
             data_schema=vol.Schema(
                 {
-                    vol.Required(CONF_OPERATOR_URL): str,
+                    vol.Required(CONF_MANUAL_LINKS): selector.TextSelector(selector.TextSelectorConfig(multiline=True)),
                 }
             ),
             errors=errors,
