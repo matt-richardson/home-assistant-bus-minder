@@ -5,14 +5,16 @@ import logging
 from datetime import datetime, time
 from typing import Optional
 
+import aiohttp
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.issue_registry import IssueSeverity
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
-from .const import CONF_ROUTE_GROUP_NAME, CONF_ROUTE_GROUP_UUID, CONF_ROUTES, DOMAIN
+from .const import CONF_ROUTE_GROUP_NAME, CONF_ROUTE_GROUP_UUID, CONF_ROUTES, DOMAIN, MAPS_BASE_URL
 from .eta import SpeedTracker, route_distance_km
 from .history import HistoryStore
 from .models import BusPosition, Route, Stop
@@ -78,6 +80,16 @@ class BusMinderCoordinator(DataUpdateCoordinator[dict[int, BusPosition]]):
         """
         effective = {**self._entry.data, **self._entry.options}
         session = async_get_clientsession(self.hass)
+
+        # Gate on backend reachability only. Any HTTP response (incl. the IIS
+        # 404 from the root path) means the host is up; only connection-level
+        # failures should defer setup.
+        try:
+            async with asyncio.timeout(10):
+                async with session.get(MAPS_BASE_URL) as resp:
+                    _ = resp.status
+        except (aiohttp.ClientError, asyncio.TimeoutError) as exc:
+            raise ConfigEntryNotReady(f"Cannot reach BusMinder ({MAPS_BASE_URL}): {exc}") from exc
 
         await self._history.async_load()
 
