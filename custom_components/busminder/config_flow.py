@@ -16,7 +16,6 @@ from .const import (
     CONF_ROUTES,
     DOMAIN,
 )
-from .exceptions import BusMinderConnectionError
 from .models import Route, RouteGroup
 from .scraper import extract_uuids, fetch_route_group_from_operator_url, fetch_route_groups_by_uuids
 
@@ -234,23 +233,13 @@ class BusMinderOptionsFlow(OptionsFlow):
         return await self.async_step_user()
 
     async def async_step_user(self, user_input: Optional[dict[str, Any]] = None) -> ConfigFlowResult:
-        errors: dict[str, str] = {}
-
         if user_input is not None:
             url = user_input[CONF_OPERATOR_URL].strip()
             try:
                 session = async_get_clientsession(self.hass)
                 group = await fetch_route_group_from_operator_url(session, url)
-            except BusMinderConnectionError as exc:
-                msg = str(exc)
-                if "Cannot connect" in msg:
-                    errors["base"] = "cannot_connect"
-                elif "No BusMinder" in msg:
-                    errors["base"] = "no_busminder"
-                else:
-                    errors["base"] = "unknown"
             except Exception:  # pylint: disable=broad-exception-caught
-                errors["base"] = "unknown"
+                return await self.async_step_manual()
             else:
                 self._operator_url = url
                 self._route_group = group
@@ -258,9 +247,48 @@ class BusMinderOptionsFlow(OptionsFlow):
 
         return self.async_show_form(
             step_id="user",
+            data_schema=vol.Schema({vol.Required(CONF_OPERATOR_URL, default=self._operator_url): str}),
+        )
+
+    def _stored_uuids(self) -> list[str]:
+        """Route group UUIDs from the stored config, in order, deduplicated."""
+        current = {**self._entry.data, **self._entry.options}
+        fallback = current.get(CONF_ROUTE_GROUP_UUID, "")
+        uuids: list[str] = []
+        for r in current.get(CONF_ROUTES, []):
+            u = r.get("uuid") or fallback
+            if u and u not in uuids:
+                uuids.append(u)
+        return uuids
+
+    async def async_step_manual(self, user_input: Optional[dict[str, Any]] = None) -> ConfigFlowResult:
+        errors: dict[str, str] = {}
+
+        if user_input is not None:
+            uuids = extract_uuids(user_input.get(CONF_MANUAL_LINKS, ""))
+            if not uuids:
+                errors["base"] = "no_uuids"
+            else:
+                try:
+                    session = async_get_clientsession(self.hass)
+                    group = await fetch_route_groups_by_uuids(session, uuids)
+                except Exception:  # pylint: disable=broad-exception-caught
+                    errors["base"] = "cannot_connect"
+                else:
+                    self._operator_url = ""
+                    self._route_group = group
+                    return await self.async_step_pick_routes()
+
+        # Pre-fill with maps URLs derived from the stored route group UUIDs.
+        default = "\n".join(f"https://maps.busminder.com.au/route/live/{u}" for u in self._stored_uuids())
+
+        return self.async_show_form(
+            step_id="manual",
             data_schema=vol.Schema(
                 {
-                    vol.Required(CONF_OPERATOR_URL, default=self._operator_url): str,
+                    vol.Required(CONF_MANUAL_LINKS, default=default): selector.TextSelector(
+                        selector.TextSelectorConfig(multiline=True)
+                    ),
                 }
             ),
             errors=errors,
