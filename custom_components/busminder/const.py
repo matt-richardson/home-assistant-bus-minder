@@ -5,6 +5,7 @@ CONF_OPERATOR_URL = "operator_url"
 CONF_ROUTE_GROUP_UUID = "route_group_uuid"
 CONF_ROUTE_GROUP_NAME = "route_group_name"
 CONF_ROUTES = "routes"  # list of {trip_id, name, route_number, uuid, stop_id, stop_name, stop_lat, stop_lng}
+CONF_MANUAL_LINKS = "busminder_links"  # config-flow field id for pasted maps URLs/UUIDs (not stored)
 
 # API
 MAPS_BASE_URL = "https://maps.busminder.com.au"

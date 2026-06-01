@@ -209,6 +209,46 @@ async def test_setup_succeeds_when_operator_url_unreachable(hass: HomeAssistant,
     assert mock_config_entry.state == ConfigEntryState.LOADED
 
 
+async def test_setup_retry_when_maps_unreachable(hass: HomeAssistant, mock_config_entry):
+    """ConfigEntryNotReady when the BusMinder backend itself is unreachable."""
+    mock_resp = MagicMock()
+    mock_resp.__aenter__ = AsyncMock(side_effect=aiohttp.ClientConnectionError("down"))
+    mock_resp.__aexit__ = AsyncMock(return_value=False)
+    mock_session = MagicMock()
+    mock_session.get = MagicMock(return_value=mock_resp)
+
+    with patch(
+        "custom_components.busminder.coordinator.async_get_clientsession",
+        return_value=mock_session,
+    ):
+        mock_config_entry.add_to_hass(hass)
+        await hass.config_entries.async_setup(mock_config_entry.entry_id)
+        await hass.async_block_till_done()
+
+    assert mock_config_entry.state == ConfigEntryState.SETUP_RETRY
+
+
+async def test_setup_loads_when_maps_returns_404(hass: HomeAssistant, mock_config_entry):
+    """A non-error HTTP response (e.g. 404 from the maps root) means reachable -> LOADED."""
+    mock_resp = MagicMock()
+    mock_resp.status = 404
+    mock_resp.raise_for_status = MagicMock()  # not called by the gate
+    mock_resp.__aenter__ = AsyncMock(return_value=mock_resp)
+    mock_resp.__aexit__ = AsyncMock(return_value=False)
+    mock_session = MagicMock()
+    mock_session.get = MagicMock(return_value=mock_resp)
+
+    with patch(
+        "custom_components.busminder.coordinator.async_get_clientsession",
+        return_value=mock_session,
+    ):
+        mock_config_entry.add_to_hass(hass)
+        await hass.config_entries.async_setup(mock_config_entry.entry_id)
+        await hass.async_block_till_done()
+
+    assert mock_config_entry.state == ConfigEntryState.LOADED
+
+
 async def test_coordinator_records_segment_on_stop_transition(hass, mock_config_entry):
     """Coordinator records inter-stop segment time when last_stop_id changes consecutively."""
     from datetime import datetime, timezone

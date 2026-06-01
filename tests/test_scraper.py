@@ -5,7 +5,11 @@ import pytest
 from aioresponses import aioresponses as aioresponses_ctx
 
 from custom_components.busminder.exceptions import BusMinderConnectionError
-from custom_components.busminder.scraper import fetch_route_group_from_operator_url
+from custom_components.busminder.scraper import (
+    extract_uuids,
+    fetch_route_group_from_operator_url,
+    fetch_route_groups_by_uuids,
+)
 
 OPERATOR_HTML = (Path(__file__).parent / "fixtures" / "operator_page.html").read_text()
 ROUTE_GROUP_HTML = (Path(__file__).parent / "fixtures" / "route_group.html").read_text()
@@ -114,3 +118,75 @@ async def test_fetch_route_group_invalid_json(mock_aiohttp):
     async with aiohttp.ClientSession() as session:
         with pytest.raises(BusMinderConnectionError, match="Invalid routemap JSON"):
             await fetch_route_group_from_operator_url(session, OPERATOR_URL)
+
+
+UUID_1 = "bf7ce605-0fac-4c51-a2f3-be3faed3c0ba"
+UUID_2 = "ba62fb89-d818-481c-8a95-08f48e331aa1"
+
+
+def test_extract_uuids_full_maps_url():
+    text = f"https://maps.busminder.com.au/route/live/{UUID_1.upper()}"
+    assert extract_uuids(text) == [UUID_1]
+
+
+def test_extract_uuids_iframe_snippet():
+    text = f'<iframe src="https://maps.busminder.com.au/route/live/{UUID_1.upper()}"></iframe>'
+    assert extract_uuids(text) == [UUID_1]
+
+
+def test_extract_uuids_bare_uuid_fallback():
+    assert extract_uuids(UUID_1) == [UUID_1]
+
+
+def test_extract_uuids_multiline_dedupe_and_order():
+    text = (
+        f"https://maps.busminder.com.au/route/live/{UUID_1.upper()}\n"
+        f"https://maps.busminder.com.au/route/live/{UUID_2.upper()}\n"
+        f"https://maps.busminder.com.au/route/live/{UUID_1}\n"  # duplicate, lowercase
+    )
+    assert extract_uuids(text) == [UUID_1, UUID_2]
+
+
+def test_extract_uuids_prefers_maps_urls_over_stray_uuids():
+    # A stray non-BusMinder UUID must be ignored when a maps URL is present.
+    text = (
+        "<meta name=tracking content=00000000-0000-4000-8000-000000000000>"
+        f'<iframe src="https://maps.busminder.com.au/route/live/{UUID_1.upper()}"></iframe>'
+    )
+    assert extract_uuids(text) == [UUID_1]
+
+
+def test_extract_uuids_none():
+    assert extract_uuids("nothing to see here") == []
+    assert extract_uuids("") == []
+
+
+MAPS_URL_1 = f"https://maps.busminder.com.au/route/live/{UUID_1.upper()}"
+MAPS_URL_2 = f"https://maps.busminder.com.au/route/live/{UUID_2.upper()}"
+
+
+async def test_fetch_route_groups_by_uuids_merges(mock_aiohttp):
+    mock_aiohttp.get(MAPS_URL_1, body=ROUTE_GROUP_HTML, content_type="text/html")
+    mock_aiohttp.get(MAPS_URL_2, body=ROUTE_GROUP_HTML, content_type="text/html")
+
+    async with aiohttp.ClientSession() as session:
+        group = await fetch_route_groups_by_uuids(session, [UUID_1, UUID_2])
+
+    # Two routes per group → four merged; uuid is the first.
+    assert len(group.routes) == 4
+    assert group.uuid == UUID_1
+    # Both groups share the same base title, so the combined name is that base.
+    assert group.name == "Springfield High"
+
+
+async def test_fetch_route_groups_by_uuids_raises_on_bad_uuid(mock_aiohttp):
+    mock_aiohttp.get(MAPS_URL_1, body=ROUTE_GROUP_HTML, content_type="text/html")
+    mock_aiohttp.get(
+        MAPS_URL_2,
+        body="<html><title>x</title>no routemap</html>",
+        content_type="text/html",
+    )
+
+    async with aiohttp.ClientSession() as session:
+        with pytest.raises(BusMinderConnectionError, match="Could not find routemap data"):
+            await fetch_route_groups_by_uuids(session, [UUID_1, UUID_2])

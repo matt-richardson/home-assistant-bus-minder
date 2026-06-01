@@ -65,7 +65,40 @@ async def test_step_user_success_proceeds_to_pick_routes(hass: HomeAssistant, mo
     assert any("trip_ids" in str(k) for k in schema_keys)
 
 
-async def test_step_user_cannot_connect(hass: HomeAssistant):
+@pytest.mark.parametrize(
+    "exc",
+    [
+        BusMinderConnectionError("Cannot connect"),
+        BusMinderConnectionError("No BusMinder iframe found"),
+        RuntimeError("unexpected"),
+    ],
+)
+async def test_step_user_failure_auto_advances_to_manual(hass: HomeAssistant, exc):
+    with patch(
+        "custom_components.busminder.config_flow.fetch_route_group_from_operator_url",
+        side_effect=exc,
+    ):
+        result = await hass.config_entries.flow.async_init(DOMAIN, context={"source": config_entries.SOURCE_USER})
+        result = await hass.config_entries.flow.async_configure(
+            result["flow_id"], user_input={"operator_url": OPERATOR_URL}
+        )
+    assert result["type"] == FlowResultType.FORM
+    assert result["step_id"] == "manual"
+
+
+MANUAL_UUID = "aaaaaaaa-0000-4000-8000-000000000001"
+
+
+@pytest.fixture
+def mock_manual_scraper():
+    with patch(
+        "custom_components.busminder.config_flow.fetch_route_groups_by_uuids",
+        return_value=MOCK_ROUTE_GROUP,
+    ) as mock:
+        yield mock
+
+
+async def _advance_to_manual(hass):
     with patch(
         "custom_components.busminder.config_flow.fetch_route_group_from_operator_url",
         side_effect=BusMinderConnectionError("Cannot connect"),
@@ -74,7 +107,44 @@ async def test_step_user_cannot_connect(hass: HomeAssistant):
         result = await hass.config_entries.flow.async_configure(
             result["flow_id"], user_input={"operator_url": OPERATOR_URL}
         )
+    return result
+
+
+async def test_manual_step_success_proceeds_to_pick_routes(hass: HomeAssistant, mock_manual_scraper):
+    result = await _advance_to_manual(hass)
+    assert result["step_id"] == "manual"
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"],
+        user_input={"busminder_links": f"https://maps.busminder.com.au/route/live/{MANUAL_UUID.upper()}"},
+    )
     assert result["type"] == FlowResultType.FORM
+    assert result["step_id"] == "pick_routes"
+    mock_manual_scraper.assert_called_once()
+    assert mock_manual_scraper.call_args.args[1] == [MANUAL_UUID]
+
+
+async def test_manual_step_no_uuids_error(hass: HomeAssistant):
+    result = await _advance_to_manual(hass)
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], user_input={"busminder_links": "no uuids here"}
+    )
+    assert result["type"] == FlowResultType.FORM
+    assert result["step_id"] == "manual"
+    assert result["errors"] == {"base": "no_uuids"}
+
+
+async def test_manual_step_fetch_failure_error(hass: HomeAssistant):
+    result = await _advance_to_manual(hass)
+    with patch(
+        "custom_components.busminder.config_flow.fetch_route_groups_by_uuids",
+        side_effect=BusMinderConnectionError("boom"),
+    ):
+        result = await hass.config_entries.flow.async_configure(
+            result["flow_id"],
+            user_input={"busminder_links": MANUAL_UUID},
+        )
+    assert result["type"] == FlowResultType.FORM
+    assert result["step_id"] == "manual"
     assert result["errors"] == {"base": "cannot_connect"}
 
 
@@ -199,9 +269,15 @@ async def test_options_flow_full_reconfiguration(hass: HomeAssistant, mock_confi
     assert routes[0]["stop_id"] == 10001
 
 
-async def test_options_flow_cannot_connect(hass: HomeAssistant, mock_config_entry):
-    """Options flow shows cannot_connect error on bad URL."""
-
+@pytest.mark.parametrize(
+    "exc",
+    [
+        BusMinderConnectionError("Cannot connect"),
+        BusMinderConnectionError("No BusMinder iframe found"),
+        RuntimeError("unexpected"),
+    ],
+)
+async def test_options_flow_failure_auto_advances_to_manual(hass: HomeAssistant, mock_config_entry, exc):
     async def empty_stream(on_connected=None, on_heartbeat=None):
         return
         yield
@@ -213,46 +289,127 @@ async def test_options_flow_cannot_connect(hass: HomeAssistant, mock_config_entr
         await hass.async_block_till_done()
 
     result = await hass.config_entries.options.async_init(mock_config_entry.entry_id)
+    with patch(
+        "custom_components.busminder.config_flow.fetch_route_group_from_operator_url",
+        side_effect=exc,
+    ):
+        result = await hass.config_entries.options.async_configure(
+            result["flow_id"], user_input={"operator_url": "https://bad-url.example.com/"}
+        )
+    assert result["type"] == FlowResultType.FORM
+    assert result["step_id"] == "manual"
 
+
+async def test_options_manual_step_prefills_maps_urls(hass: HomeAssistant, mock_config_entry):
+    async def empty_stream(on_connected=None, on_heartbeat=None):
+        return
+        yield
+
+    with patch("custom_components.busminder.coordinator.SignalRClient") as MockClient:
+        MockClient.return_value.stream = empty_stream
+        mock_config_entry.add_to_hass(hass)
+        await hass.config_entries.async_setup(mock_config_entry.entry_id)
+        await hass.async_block_till_done()
+
+    result = await hass.config_entries.options.async_init(mock_config_entry.entry_id)
     with patch(
         "custom_components.busminder.config_flow.fetch_route_group_from_operator_url",
         side_effect=BusMinderConnectionError("Cannot connect"),
     ):
         result = await hass.config_entries.options.async_configure(
-            result["flow_id"],
-            user_input={"operator_url": "https://bad-url.example.com/"},
+            result["flow_id"], user_input={"operator_url": OPERATOR_URL}
         )
+    assert result["step_id"] == "manual"
+    schema = result["data_schema"].schema
+    field = next(k for k in schema if str(k) == "busminder_links")
+    default = field.default() if callable(field.default) else field.default
+    assert "https://maps.busminder.com.au/route/live/aaaaaaaa-0000-4000-8000-000000000001" in default
 
+
+async def test_options_manual_step_reconfigures(hass: HomeAssistant, mock_config_entry, mock_manual_scraper):
+    async def empty_stream(on_connected=None, on_heartbeat=None):
+        return
+        yield
+
+    with patch("custom_components.busminder.coordinator.SignalRClient") as MockClient:
+        MockClient.return_value.stream = empty_stream
+        mock_config_entry.add_to_hass(hass)
+        await hass.config_entries.async_setup(mock_config_entry.entry_id)
+        await hass.async_block_till_done()
+
+    result = await hass.config_entries.options.async_init(mock_config_entry.entry_id)
+    with patch(
+        "custom_components.busminder.config_flow.fetch_route_group_from_operator_url",
+        side_effect=BusMinderConnectionError("Cannot connect"),
+    ):
+        result = await hass.config_entries.options.async_configure(
+            result["flow_id"], user_input={"operator_url": OPERATOR_URL}
+        )
+    assert result["step_id"] == "manual"
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"], user_input={"busminder_links": MANUAL_UUID}
+    )
+    assert result["step_id"] == "pick_routes"
+
+
+async def test_options_manual_step_no_uuids_error(hass: HomeAssistant, mock_config_entry):
+    async def empty_stream(on_connected=None, on_heartbeat=None):
+        return
+        yield
+
+    with patch("custom_components.busminder.coordinator.SignalRClient") as MockClient:
+        MockClient.return_value.stream = empty_stream
+        mock_config_entry.add_to_hass(hass)
+        await hass.config_entries.async_setup(mock_config_entry.entry_id)
+        await hass.async_block_till_done()
+
+    result = await hass.config_entries.options.async_init(mock_config_entry.entry_id)
+    with patch(
+        "custom_components.busminder.config_flow.fetch_route_group_from_operator_url",
+        side_effect=BusMinderConnectionError("Cannot connect"),
+    ):
+        result = await hass.config_entries.options.async_configure(
+            result["flow_id"], user_input={"operator_url": OPERATOR_URL}
+        )
+    assert result["step_id"] == "manual"
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"], user_input={"busminder_links": "no uuids here"}
+    )
     assert result["type"] == FlowResultType.FORM
+    assert result["step_id"] == "manual"
+    assert result["errors"] == {"base": "no_uuids"}
+
+
+async def test_options_manual_step_fetch_failure_error(hass: HomeAssistant, mock_config_entry):
+    async def empty_stream(on_connected=None, on_heartbeat=None):
+        return
+        yield
+
+    with patch("custom_components.busminder.coordinator.SignalRClient") as MockClient:
+        MockClient.return_value.stream = empty_stream
+        mock_config_entry.add_to_hass(hass)
+        await hass.config_entries.async_setup(mock_config_entry.entry_id)
+        await hass.async_block_till_done()
+
+    result = await hass.config_entries.options.async_init(mock_config_entry.entry_id)
+    with patch(
+        "custom_components.busminder.config_flow.fetch_route_group_from_operator_url",
+        side_effect=BusMinderConnectionError("Cannot connect"),
+    ):
+        result = await hass.config_entries.options.async_configure(
+            result["flow_id"], user_input={"operator_url": OPERATOR_URL}
+        )
+    assert result["step_id"] == "manual"
+    with patch(
+        "custom_components.busminder.config_flow.fetch_route_groups_by_uuids",
+        side_effect=BusMinderConnectionError("boom"),
+    ):
+        result = await hass.config_entries.options.async_configure(
+            result["flow_id"], user_input={"busminder_links": MANUAL_UUID}
+        )
+    assert result["type"] == FlowResultType.FORM
+    assert result["step_id"] == "manual"
     assert result["errors"] == {"base": "cannot_connect"}
-
-
-async def test_step_user_no_busminder_error(hass: HomeAssistant):
-    """Initial flow shows no_busminder error when no iframe found."""
-    with patch(
-        "custom_components.busminder.config_flow.fetch_route_group_from_operator_url",
-        side_effect=BusMinderConnectionError("No BusMinder iframe found"),
-    ):
-        result = await hass.config_entries.flow.async_init(DOMAIN, context={"source": config_entries.SOURCE_USER})
-        result = await hass.config_entries.flow.async_configure(
-            result["flow_id"], user_input={"operator_url": OPERATOR_URL}
-        )
-    assert result["type"] == FlowResultType.FORM
-    assert result["errors"] == {"base": "no_busminder"}
-
-
-async def test_step_user_unknown_error(hass: HomeAssistant):
-    """Initial flow shows unknown error on unexpected exception."""
-    with patch(
-        "custom_components.busminder.config_flow.fetch_route_group_from_operator_url",
-        side_effect=RuntimeError("unexpected"),
-    ):
-        result = await hass.config_entries.flow.async_init(DOMAIN, context={"source": config_entries.SOURCE_USER})
-        result = await hass.config_entries.flow.async_configure(
-            result["flow_id"], user_input={"operator_url": OPERATOR_URL}
-        )
-    assert result["type"] == FlowResultType.FORM
-    assert result["errors"] == {"base": "unknown"}
 
 
 async def test_step_pick_routes_empty_selection_shows_error(hass: HomeAssistant, mock_scraper):
@@ -283,62 +440,6 @@ async def test_step_pick_stop_unknown_stop_id(hass: HomeAssistant, mock_scraper)
     assert result["type"] == FlowResultType.FORM
     assert result["step_id"] == "pick_stop"
     assert result["errors"] == {"base": "unknown"}
-
-
-async def test_options_flow_unknown_error(hass: HomeAssistant, mock_config_entry):
-    """Options flow handles unexpected errors with the 'unknown' error key."""
-
-    async def empty_stream(on_connected=None, on_heartbeat=None):
-        return
-        yield
-
-    with patch("custom_components.busminder.coordinator.SignalRClient") as MockClient:
-        MockClient.return_value.stream = empty_stream
-        mock_config_entry.add_to_hass(hass)
-        await hass.config_entries.async_setup(mock_config_entry.entry_id)
-        await hass.async_block_till_done()
-
-    result = await hass.config_entries.options.async_init(mock_config_entry.entry_id)
-
-    with patch(
-        "custom_components.busminder.config_flow.fetch_route_group_from_operator_url",
-        side_effect=RuntimeError("unexpected"),
-    ):
-        result = await hass.config_entries.options.async_configure(
-            result["flow_id"],
-            user_input={"operator_url": "https://example.com/"},
-        )
-
-    assert result["type"] == FlowResultType.FORM
-    assert result["errors"] == {"base": "unknown"}
-
-
-async def test_options_flow_no_busminder(hass: HomeAssistant, mock_config_entry):
-    """Options flow shows no_busminder error when no iframe found."""
-
-    async def empty_stream(on_connected=None, on_heartbeat=None):
-        return
-        yield
-
-    with patch("custom_components.busminder.coordinator.SignalRClient") as MockClient:
-        MockClient.return_value.stream = empty_stream
-        mock_config_entry.add_to_hass(hass)
-        await hass.config_entries.async_setup(mock_config_entry.entry_id)
-        await hass.async_block_till_done()
-
-    result = await hass.config_entries.options.async_init(mock_config_entry.entry_id)
-
-    with patch(
-        "custom_components.busminder.config_flow.fetch_route_group_from_operator_url",
-        side_effect=BusMinderConnectionError("No BusMinder iframe found"),
-    ):
-        result = await hass.config_entries.options.async_configure(
-            result["flow_id"],
-            user_input={"operator_url": "https://example.com/"},
-        )
-
-    assert result["type"] == FlowResultType.FORM
-    assert result["errors"] == {"base": "no_busminder"}
 
 
 async def test_options_flow_empty_routes_shows_error(hass: HomeAssistant, mock_config_entry, mock_scraper):
