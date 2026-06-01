@@ -10,7 +10,7 @@
       },
       "manual": {
         "title": "Enter BusMinder link",
-        "description": "That page couldn't be read automatically (it may be bot-protected). Open it in your browser, find the BusMinder live-map link(s), and paste them below — one per line. A link looks like https://maps.busminder.com.au/route/live/ followed by an id. A bare id, or the iframe embed code, also works.",
+        "description": "That page couldn't be read automatically (it may be bot-protected). Open it in your browser, find the BusMinder live-map link(s), and paste them below — one per line. Each link points to maps.busminder.com.au/route/live and ends with an id. A bare id, or the iframe embed code, also works.",
         "data": {
           "busminder_links": "BusMinder link(s)"
         }
@@ -54,7 +54,7 @@
       },
       "manual": {
         "title": "Enter BusMinder link",
-        "description": "That page couldn't be read automatically (it may be bot-protected). Open it in your browser, find the BusMinder live-map link(s), and paste them below — one per line. A link looks like https://maps.busminder.com.au/route/live/ followed by an id. A bare id, or the iframe embed code, also works.",
+        "description": "That page couldn't be read automatically (it may be bot-protected). Open it in your browser, find the BusMinder live-map link(s), and paste them below — one per line. Each link points to maps.busminder.com.au/route/live and ends with an id. A bare id, or the iframe embed code, also works.",
         "data": {
           "busminder_links": "BusMinder link(s)"
         }
