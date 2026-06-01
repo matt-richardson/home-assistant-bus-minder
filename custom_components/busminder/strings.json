@@ -10,7 +10,7 @@
       },
       "manual": {
         "title": "Enter BusMinder link",
-        "description": "That page couldn't be read automatically (it may be bot-protected). Open it in your browser, find the BusMinder live-map link(s), and paste them below — one per line. A link looks like https://maps.busminder.com.au/route/live/<id>. A bare id or an <iframe> snippet also works.",
+        "description": "That page couldn't be read automatically (it may be bot-protected). Open it in your browser, find the BusMinder live-map link(s), and paste them below — one per line. A link looks like https://maps.busminder.com.au/route/live/ followed by an id. A bare id, or the iframe embed code, also works.",
         "data": {
           "busminder_links": "BusMinder link(s)"
         }
@@ -37,7 +37,7 @@
       "no_busminder": "No BusMinder tracking widget found on that page.",
       "unknown": "Unexpected error. Check the logs for details.",
       "parse_error": "Could not read data from the BusMinder page. Check the logs for details.",
-      "no_uuids": "No BusMinder link or id found in what you pasted. Paste a maps.busminder.com.au/route/live/… link, a bare id, or the <iframe> snippet."
+      "no_uuids": "No BusMinder link or id found in what you pasted. Paste a maps.busminder.com.au/route/live/… link, a bare id, or the iframe embed code."
     },
     "abort": {
       "already_configured": "This route group is already configured."
@@ -54,7 +54,7 @@
       },
       "manual": {
         "title": "Enter BusMinder link",
-        "description": "That page couldn't be read automatically (it may be bot-protected). Open it in your browser, find the BusMinder live-map link(s), and paste them below — one per line. A link looks like https://maps.busminder.com.au/route/live/<id>. A bare id or an <iframe> snippet also works.",
+        "description": "That page couldn't be read automatically (it may be bot-protected). Open it in your browser, find the BusMinder live-map link(s), and paste them below — one per line. A link looks like https://maps.busminder.com.au/route/live/ followed by an id. A bare id, or the iframe embed code, also works.",
         "data": {
           "busminder_links": "BusMinder link(s)"
         }
@@ -80,7 +80,7 @@
       "cannot_connect": "Could not connect to the tracking page. Check the URL and try again.",
       "no_busminder": "No BusMinder tracking widget found on that page.",
       "unknown": "Unexpected error. Check the logs for details.",
-      "no_uuids": "No BusMinder link or id found in what you pasted. Paste a maps.busminder.com.au/route/live/… link, a bare id, or the <iframe> snippet."
+      "no_uuids": "No BusMinder link or id found in what you pasted. Paste a maps.busminder.com.au/route/live/… link, a bare id, or the iframe embed code."
     }
   },
   "issues": {
