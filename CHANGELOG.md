@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.4.0](https://github.com/matt-richardson/home-assistant-bus-minder/compare/v1.3.2...v1.4.0) (2026-06-01)
+
+
+### Features
+
+* manual UUID/maps-URL fallback when operator page is bot-protected ([#8](https://github.com/matt-richardson/home-assistant-bus-minder/issues/8)) ([95300bd](https://github.com/matt-richardson/home-assistant-bus-minder/commit/95300bd246aad25075eb20f1e4047aaca6a9c8dd))
+
 ## [1.3.2](https://github.com/matt-richardson/home-assistant-bus-minder/compare/v1.3.1...v1.3.2) (2026-06-01)
 
 
