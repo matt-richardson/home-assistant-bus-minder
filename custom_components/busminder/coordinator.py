@@ -7,13 +7,12 @@ from typing import Optional
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
-from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.issue_registry import IssueSeverity
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
-from .const import CONF_OPERATOR_URL, CONF_ROUTE_GROUP_UUID, CONF_ROUTES, DOMAIN
+from .const import CONF_ROUTE_GROUP_NAME, CONF_ROUTE_GROUP_UUID, CONF_ROUTES, DOMAIN
 from .eta import SpeedTracker, route_distance_km
 from .history import HistoryStore
 from .models import BusPosition, Route, Stop
@@ -71,16 +70,14 @@ class BusMinderCoordinator(DataUpdateCoordinator[dict[int, BusPosition]]):
         self.etas: dict[int, Optional[float]] = {}  # trip_id → minutes or None
 
     async def async_start(self) -> None:
-        """Test connectivity then start one background SSE task per unique route group UUID."""
+        """Start one background SSE task per unique route group UUID.
+
+        The data path is maps.busminder.com.au + SignalR. Connectivity is
+        established by the SSE connection itself; the connection_failed repair
+        issue surfaces sustained outages.
+        """
         effective = {**self._entry.data, **self._entry.options}
-        operator_url = effective.get(CONF_OPERATOR_URL, "")
         session = async_get_clientsession(self.hass)
-        try:
-            async with asyncio.timeout(10):
-                async with session.get(operator_url) as resp:
-                    resp.raise_for_status()
-        except Exception as exc:
-            raise ConfigEntryNotReady(f"Cannot reach {operator_url}: {exc}") from exc
 
         await self._history.async_load()
 
@@ -138,7 +135,7 @@ class BusMinderCoordinator(DataUpdateCoordinator[dict[int, BusPosition]]):
     async def _run_sse(self, uuid: str) -> None:
         """Maintain the SSE connection for one route group UUID, reconnecting on error."""
         effective = {**self._entry.data, **self._entry.options}
-        operator_url = effective.get(CONF_OPERATOR_URL, uuid)
+        route_group_label = effective.get(CONF_ROUTE_GROUP_NAME, uuid) or uuid
         session = async_get_clientsession(self.hass)
         backoff = 5
         while True:
@@ -169,7 +166,7 @@ class BusMinderCoordinator(DataUpdateCoordinator[dict[int, BusPosition]]):
                     self.async_update_listeners()
                     _LOGGER.warning(
                         "BusMinder: lost connection to %s after %d attempts, entities now unavailable",
-                        operator_url,
+                        route_group_label,
                         self._failure_count,
                     )
                     ir.async_create_issue(
@@ -179,7 +176,7 @@ class BusMinderCoordinator(DataUpdateCoordinator[dict[int, BusPosition]]):
                         is_fixable=False,
                         severity=IssueSeverity.WARNING,
                         translation_key="connection_failed",
-                        translation_placeholders={"operator_url": operator_url},
+                        translation_placeholders={"route_group": route_group_label},
                     )
                 await asyncio.sleep(backoff)
                 backoff = min(backoff * 2, 60)

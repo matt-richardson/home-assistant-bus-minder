@@ -132,7 +132,7 @@ async def test_connection_failed_clears_on_position(hass: HomeAssistant, mock_co
         is_fixable=False,
         severity=ir.IssueSeverity.WARNING,
         translation_key="connection_failed",
-        translation_placeholders={"operator_url": "https://example.com/"},
+        translation_placeholders={"route_group": "Springfield High - PM"},
     )
 
     pos = BusPosition(
@@ -172,7 +172,7 @@ async def test_connection_failed_clears_on_heartbeat(hass: HomeAssistant, mock_c
         is_fixable=False,
         severity=ir.IssueSeverity.WARNING,
         translation_key="connection_failed",
-        translation_placeholders={"operator_url": "https://example.com/"},
+        translation_placeholders={"route_group": "Springfield High - PM"},
     )
 
     coordinator._on_sse_heartbeat()
@@ -184,10 +184,15 @@ async def test_connection_failed_clears_on_heartbeat(hass: HomeAssistant, mock_c
     assert issue_reg.async_get_issue("busminder", "connection_failed") is None
 
 
-async def test_config_entry_not_ready_when_unreachable(hass: HomeAssistant, mock_config_entry):
-    """ConfigEntryNotReady is raised when the operator URL is unreachable at setup."""
+async def test_setup_succeeds_when_operator_url_unreachable(hass: HomeAssistant, mock_config_entry):
+    """Setup must not depend on the operator page (now bot-protected).
+
+    The integration's data path is maps.busminder.com.au + SignalR, never the
+    operator page. A 403/unreachable operator URL must not block the entry from
+    loading.
+    """
     mock_resp = MagicMock()
-    mock_resp.raise_for_status.side_effect = aiohttp.ClientConnectionError("Cannot connect")
+    mock_resp.raise_for_status.side_effect = aiohttp.ClientError("403, message='Forbidden'")
     mock_resp.__aenter__ = AsyncMock(return_value=mock_resp)
     mock_resp.__aexit__ = AsyncMock(return_value=False)
     mock_session = MagicMock()
@@ -201,7 +206,7 @@ async def test_config_entry_not_ready_when_unreachable(hass: HomeAssistant, mock
         await hass.config_entries.async_setup(mock_config_entry.entry_id)
         await hass.async_block_till_done()
 
-    assert mock_config_entry.state == ConfigEntryState.SETUP_RETRY
+    assert mock_config_entry.state == ConfigEntryState.LOADED
 
 
 async def test_coordinator_records_segment_on_stop_transition(hass, mock_config_entry):

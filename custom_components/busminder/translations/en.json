@@ -70,7 +70,7 @@
   "issues": {
     "connection_failed": {
       "title": "BusMinder connection lost",
-      "description": "BusMinder has been unable to connect to `{operator_url}` for several attempts. Check that the URL is still valid and that the service is reachable. The issue will resolve automatically when the connection is restored."
+      "description": "BusMinder has been unable to connect to the `{route_group}` route group for several attempts. Check that the BusMinder service is reachable. The issue will resolve automatically when the connection is restored."
     }
   },
   "entity": {
