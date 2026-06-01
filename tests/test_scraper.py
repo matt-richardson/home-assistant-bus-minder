@@ -175,6 +175,8 @@ async def test_fetch_route_groups_by_uuids_merges(mock_aiohttp):
     # Two routes per group → four merged; uuid is the first.
     assert len(group.routes) == 4
     assert group.uuid == UUID_1
+    # Both groups share the same base title, so the combined name is that base.
+    assert group.name == "Springfield High"
 
 
 async def test_fetch_route_groups_by_uuids_raises_on_bad_uuid(mock_aiohttp):
