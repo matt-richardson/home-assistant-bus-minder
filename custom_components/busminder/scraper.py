@@ -13,14 +13,32 @@ from .models import Route, RouteGroup
 if TYPE_CHECKING:
     pass
 
-_IFRAME_RE = re.compile(
-    r'<iframe[^>]+src=["\']https://maps\.busminder\.com\.au/route/live/([A-Fa-f0-9\-]{36})["\']',
+_MAPS_UUID_RE = re.compile(
+    r"maps\.busminder\.com\.au/route/live/([0-9a-fA-F-]{36})",
     re.IGNORECASE,
 )
+_BARE_UUID_RE = re.compile(r"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}")
 _ROUTEMAP_RE = re.compile(
     r"var liveMap\s*=\s*new routemap\s*\(\s*['\"][^'\"]*['\"]\s*,\s*(\{.*?\})\s*\)\s*;",
     re.DOTALL,
 )
+
+
+def extract_uuids(text: str) -> list[str]:
+    """Pull BusMinder route group UUIDs out of arbitrary text.
+
+    Prefers maps.busminder.com.au/route/live/{uuid} matches (so operator-page
+    HTML and pasted links only yield BusMinder UUIDs); falls back to bare UUIDs
+    when no such URL is present. Lowercased, deduplicated, order preserved.
+    """
+    text = text or ""
+    matches = _MAPS_UUID_RE.findall(text) or _BARE_UUID_RE.findall(text)
+    out: list[str] = []
+    for match in matches:
+        uuid = match.lower()
+        if uuid not in out:
+            out.append(uuid)
+    return out
 
 
 def _clean_title(title: str) -> str:
@@ -75,7 +93,7 @@ async def fetch_route_group_from_operator_url(session: aiohttp.ClientSession, op
         raise BusMinderConnectionError(f"Cannot connect to {operator_url}: {exc}") from exc
 
     # Step 2: extract all UUIDs (operators may embed AM and PM groups as separate iframes)
-    uuids = [u.lower() for u in _IFRAME_RE.findall(html)]
+    uuids = extract_uuids(html)
     if not uuids:
         raise BusMinderConnectionError(f"No BusMinder iframe found on {operator_url}")
 
