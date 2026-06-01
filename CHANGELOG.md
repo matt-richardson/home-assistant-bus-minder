@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.2](https://github.com/matt-richardson/home-assistant-bus-minder/compare/v1.3.1...v1.3.2) (2026-06-01)
+
+
+### Bug Fixes
+
+* don't block setup on operator page reachability ([#6](https://github.com/matt-richardson/home-assistant-bus-minder/issues/6)) ([805d046](https://github.com/matt-richardson/home-assistant-bus-minder/commit/805d046c453267a5ae69fb9ec13c35b5c2e968e4))
+
 ## [1.3.1](https://github.com/matt-richardson/home-assistant-bus-minder/compare/v1.3.0...v1.3.1) (2026-05-02)
 
 
