@@ -15,6 +15,7 @@ from .const import (
     CONF_ROUTE_GROUP_UUID,
     CONF_ROUTES,
     DOMAIN,
+    MAPS_BASE_URL,
 )
 from .models import Route, RouteGroup
 from .scraper import extract_uuids, fetch_route_group_from_operator_url, fetch_route_groups_by_uuids
@@ -278,7 +279,7 @@ class BusMinderOptionsFlow(OptionsFlow):
                     return await self.async_step_pick_routes()
 
         # Pre-fill with maps URLs derived from the stored route group UUIDs.
-        default = "\n".join(f"https://maps.busminder.com.au/route/live/{u}" for u in self._stored_uuids())
+        default = "\n".join(f"{MAPS_BASE_URL}/route/live/{u}" for u in self._stored_uuids())
 
         return self.async_show_form(
             step_id="manual",
