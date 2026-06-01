@@ -79,12 +79,24 @@ async def fetch_route_group_by_uuid(session: aiohttp.ClientSession, uuid: str) -
     return RouteGroup(uuid=uuid, name=group_name, routes=routes)
 
 
+async def fetch_route_groups_by_uuids(session: aiohttp.ClientSession, uuids: list[str]) -> RouteGroup:
+    """Fetch each UUID and merge into one RouteGroup.
+
+    Raises BusMinderConnectionError on the first UUID that fails — config-time
+    input should surface a bad entry rather than silently importing a subset.
+    """
+    groups = [await fetch_route_group_by_uuid(session, uuid) for uuid in uuids]
+    all_routes = [route for group in groups for route in group.routes]
+
+    # Derive a combined name: strip trailing " - AM" / " - PM" and deduplicate.
+    base_names = [re.sub(r"\s*-\s*(AM|PM)\s*$", "", g.name, flags=re.IGNORECASE).strip() for g in groups]
+    combined_name = base_names[0] if len(set(base_names)) == 1 else groups[0].name
+
+    return RouteGroup(uuid=groups[0].uuid, name=combined_name, routes=all_routes)
+
+
 async def fetch_route_group_from_operator_url(session: aiohttp.ClientSession, operator_url: str) -> RouteGroup:
-    """
-    Fetch the operator's tracking page, extract all BusMinder UUIDs from
-    embedded iframes, fetch each route group, and return them merged.
-    """
-    # Step 1: fetch operator page
+    """Fetch the operator page, extract BusMinder UUIDs, and merge their route groups."""
     try:
         async with session.get(operator_url, headers=SIGNALR_HEADERS, timeout=aiohttp.ClientTimeout(total=10)) as resp:
             resp.raise_for_status()
@@ -92,17 +104,8 @@ async def fetch_route_group_from_operator_url(session: aiohttp.ClientSession, op
     except aiohttp.ClientError as exc:
         raise BusMinderConnectionError(f"Cannot connect to {operator_url}: {exc}") from exc
 
-    # Step 2: extract all UUIDs (operators may embed AM and PM groups as separate iframes)
     uuids = extract_uuids(html)
     if not uuids:
         raise BusMinderConnectionError(f"No BusMinder iframe found on {operator_url}")
 
-    # Step 3: fetch all route groups and merge
-    groups = [await fetch_route_group_by_uuid(session, uuid) for uuid in uuids]
-    all_routes = [route for group in groups for route in group.routes]
-
-    # Derive a combined name: strip trailing " - AM" / " - PM" suffixes and deduplicate
-    base_names = [re.sub(r"\s*-\s*(AM|PM)\s*$", "", g.name, flags=re.IGNORECASE).strip() for g in groups]
-    combined_name = base_names[0] if len(set(base_names)) == 1 else groups[0].name
-
-    return RouteGroup(uuid=groups[0].uuid, name=combined_name, routes=all_routes)
+    return await fetch_route_groups_by_uuids(session, uuids)
