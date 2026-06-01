@@ -8,6 +8,13 @@
           "operator_url": "Tracking page URL"
         }
       },
+      "manual": {
+        "title": "Enter BusMinder link",
+        "description": "That page couldn't be read automatically (it may be bot-protected). Open it in your browser, find the BusMinder live-map link(s), and paste them below — one per line. A link looks like https://maps.busminder.com.au/route/live/<id>. A bare id or an <iframe> snippet also works.",
+        "data": {
+          "busminder_links": "BusMinder link(s)"
+        }
+      },
       "pick_routes": {
         "title": "Select routes to monitor",
         "description": "Choose the bus routes you want to track.",
@@ -29,7 +36,8 @@
       "cannot_connect": "Could not connect to the tracking page. Check the URL and try again.",
       "no_busminder": "No BusMinder tracking widget found on that page.",
       "unknown": "Unexpected error. Check the logs for details.",
-      "parse_error": "Could not read data from the BusMinder page. Check the logs for details."
+      "parse_error": "Could not read data from the BusMinder page. Check the logs for details.",
+      "no_uuids": "No BusMinder link or id found in what you pasted. Paste a maps.busminder.com.au/route/live/… link, a bare id, or the <iframe> snippet."
     },
     "abort": {
       "already_configured": "This route group is already configured."
@@ -42,6 +50,13 @@
         "description": "Update the tracking page URL.",
         "data": {
           "operator_url": "Tracking page URL"
+        }
+      },
+      "manual": {
+        "title": "Enter BusMinder link",
+        "description": "That page couldn't be read automatically (it may be bot-protected). Open it in your browser, find the BusMinder live-map link(s), and paste them below — one per line. A link looks like https://maps.busminder.com.au/route/live/<id>. A bare id or an <iframe> snippet also works.",
+        "data": {
+          "busminder_links": "BusMinder link(s)"
         }
       },
       "pick_routes": {
@@ -64,7 +79,8 @@
     "error": {
       "cannot_connect": "Could not connect to the tracking page. Check the URL and try again.",
       "no_busminder": "No BusMinder tracking widget found on that page.",
-      "unknown": "Unexpected error. Check the logs for details."
+      "unknown": "Unexpected error. Check the logs for details.",
+      "no_uuids": "No BusMinder link or id found in what you pasted. Paste a maps.busminder.com.au/route/live/… link, a bare id, or the <iframe> snippet."
     }
   },
   "issues": {
