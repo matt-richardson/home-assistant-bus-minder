@@ -46,12 +46,11 @@ class BusMinderConfigFlow(ConfigFlow, domain=DOMAIN):  # type: ignore[call-arg] 
                 # Operator page unreadable (often Cloudflare bot protection).
                 # Fall through to manual entry of BusMinder link(s)/UUID(s).
                 return await self.async_step_manual()
-            else:
-                await self.async_set_unique_id(group.uuid)
-                self._abort_if_unique_id_configured()
-                self._operator_url = url
-                self._route_group = group
-                return await self.async_step_pick_routes()
+            await self.async_set_unique_id(group.uuid)
+            self._abort_if_unique_id_configured()
+            self._operator_url = url
+            self._route_group = group
+            return await self.async_step_pick_routes()
 
         return self.async_show_form(
             step_id="user",
@@ -240,10 +239,9 @@ class BusMinderOptionsFlow(OptionsFlow):
                 group = await fetch_route_group_from_operator_url(session, url)
             except Exception:  # pylint: disable=broad-exception-caught
                 return await self.async_step_manual()
-            else:
-                self._operator_url = url
-                self._route_group = group
-                return await self.async_step_pick_routes()
+            self._operator_url = url
+            self._route_group = group
+            return await self.async_step_pick_routes()
 
         return self.async_show_form(
             step_id="user",
