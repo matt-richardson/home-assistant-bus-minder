@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.4.1](https://github.com/matt-richardson/home-assistant-bus-minder/compare/v1.4.0...v1.4.1) (2026-06-20)
+
+
+### Miscellaneous Chores
+
+* add MIT License ([#10](https://github.com/matt-richardson/home-assistant-bus-minder/issues/10)) ([8ba1a58](https://github.com/matt-richardson/home-assistant-bus-minder/commit/8ba1a58a803318c020f70097d553e9d63be1a26a))
+* declare `country` (AU) and minimum Home Assistant version in `hacs.json` for HACS compliance ([#11](https://github.com/matt-richardson/home-assistant-bus-minder/issues/11)) ([90fc68c](https://github.com/matt-richardson/home-assistant-bus-minder/commit/90fc68c3cab3867f10811a24fcfee0124a12569a))
+
 ## [1.4.0](https://github.com/matt-richardson/home-assistant-bus-minder/compare/v1.3.2...v1.4.0) (2026-06-01)
 
 
