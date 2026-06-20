@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.4.2](https://github.com/matt-richardson/home-assistant-bus-minder/compare/v1.4.1...v1.4.2) (2026-06-20)
+
+
+### Bug Fixes
+
+* use consistent device name across all platforms ([#13](https://github.com/matt-richardson/home-assistant-bus-minder/issues/13)) ([4399418](https://github.com/matt-richardson/home-assistant-bus-minder/commit/43994189efcf12e02ca5066db142dfaeff680709))
+
 ## [1.4.1](https://github.com/matt-richardson/home-assistant-bus-minder/compare/v1.4.0...v1.4.1) (2026-06-20)
 
 
