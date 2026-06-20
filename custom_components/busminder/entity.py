@@ -10,6 +10,13 @@ from .const import CONF_OPERATOR_URL, DOMAIN
 from .coordinator import BusMinderCoordinator
 
 
+def device_name_from_route(route: dict) -> str:
+    """Build the HA device name for a route, honouring custom overrides."""
+    name = route.get("custom_route_name") or route["name"]
+    stop = route.get("custom_stop_name") or route["stop_name"]
+    return f"{name} - {stop}"
+
+
 class BusMinderEntity(CoordinatorEntity[BusMinderCoordinator]):
     """Base entity providing shared device_info for all BusMinder entities."""
 

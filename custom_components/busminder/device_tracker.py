@@ -10,7 +10,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .const import CONF_ROUTES
 from .coordinator import BusMinderCoordinator
-from .entity import BusMinderEntity
+from .entity import BusMinderEntity, device_name_from_route
 from .models import BusPosition
 
 _LOGGER = logging.getLogger(__name__)
@@ -27,13 +27,7 @@ async def async_setup_entry(
 
     effective = {**entry.data, **entry.options}
     entities = [
-        BusTrackerEntity(
-            coordinator,
-            entry,
-            r["trip_id"],
-            r["route_number"],
-            f"{r.get('custom_route_name') or r['name']} - {r.get('custom_stop_name') or r['stop_name']}",
-        )
+        BusTrackerEntity(coordinator, entry, r["trip_id"], r["route_number"], device_name_from_route(r))
         for r in effective.get(CONF_ROUTES, [])
     ]
     async_add_entities(entities)
