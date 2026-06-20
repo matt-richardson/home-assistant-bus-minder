@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.4.1](https://github.com/matt-richardson/home-assistant-bus-minder/compare/v1.4.0...v1.4.1) (2026-06-20)
+
+
+### Miscellaneous Chores
+
+* force release 1.4.1 ([b8d9a61](https://github.com/matt-richardson/home-assistant-bus-minder/commit/b8d9a610552e1f499da65c0f1e7c7a27635cdccc))
+
 ## [1.4.0](https://github.com/matt-richardson/home-assistant-bus-minder/compare/v1.3.2...v1.4.0) (2026-06-01)
 
 
