@@ -151,3 +151,7 @@ test: add or update tests
 ```
 
 Open a pull request against `main`. CI must pass before merge.
+
+## License
+
+Released under the [MIT License](LICENSE).
