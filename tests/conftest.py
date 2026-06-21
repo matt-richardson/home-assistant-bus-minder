@@ -60,6 +60,20 @@ def mock_coordinator_signalr():
         yield mock_client
 
 
+@pytest.fixture(autouse=True)
+def mock_config_flow_session():
+    """Stop the config flow from creating a real aiohttp ClientSession.
+
+    The flow calls async_get_clientsession(self.hass) before the (mocked)
+    scraper runs. A real session spawns a daemon shutdown thread that HA's
+    verify_cleanup fixture flags as a leak on some HA versions (e.g. 2025.1),
+    failing otherwise-passing config-flow tests at teardown. The scraper calls
+    are already mocked per-test, so the session is never actually used.
+    """
+    with patch("custom_components.busminder.config_flow.async_get_clientsession", return_value=MagicMock()):
+        yield
+
+
 @pytest.fixture
 def config_entry_data():
     return {
