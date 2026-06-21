@@ -1,7 +1,11 @@
 name: Validate
 on:
   push:
+    branches:
+      - main
   pull_request:
+    branches:
+      - main
 jobs:
   lint:
     name: Lint
