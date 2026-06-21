@@ -29,7 +29,9 @@ Track live school bus arrival times and GPS positions from [BusMinder](https://b
 
 ## Requirements
 
-- Home Assistant 2024.1+
+- Home Assistant 2024.6 or newer (the integration uses `ConfigEntry.runtime_data`).
+  CI tests Python 3.12–3.14 against Home Assistant 2025.1 (Python 3.12) through
+  2026.6+ (Python 3.13/3.14).
 - A school or operator using [BusMinder](https://busminder.com.au/)
 
 ## Installation

@@ -1,4 +1,15 @@
-pytest-homeassistant-custom-component==0.13.325  # tracks HA 2026.4.0 stable; bump manually to avoid auto-pulling beta HA versions
+# pytest-homeassistant-custom-component bundles a specific Home Assistant
+# version, and each release supports a single Python version. Pin one per
+# Python version so the suite is tested against an appropriate HA on each:
+#   3.12 -> 0.13.205 (HA 2025.1.4)
+#   3.13 -> 0.13.316 (HA 2026.2.3)
+#   3.14 -> 0.13.340 (HA 2026.6.4)
+# Python 3.11 is not supported: the newest pytest-hacc for 3.11 bundles HA
+# 2024.3.3, which predates ConfigEntry.runtime_data (HA 2024.6) that this
+# integration relies on. Bump manually to avoid auto-pulling beta HA versions.
+pytest-homeassistant-custom-component==0.13.205; python_version == "3.12"
+pytest-homeassistant-custom-component==0.13.316; python_version == "3.13"
+pytest-homeassistant-custom-component==0.13.340; python_version >= "3.14"
 aioresponses>=0.7.6
 pytest-asyncio>=0.23.0
 pytest-cov>=4.0

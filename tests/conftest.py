@@ -60,6 +60,37 @@ def mock_coordinator_signalr():
         yield mock_client
 
 
+@pytest.fixture(autouse=True)
+def no_pycares_resolver_thread():
+    """Use aiohttp's ThreadedResolver instead of the aiodns/pycares resolver.
+
+    Creating an aiohttp ClientSession (in the scraper and config-flow tests)
+    instantiates the default aiodns resolver, whose pycares channel spawns a
+    daemon ``_run_safe_shutdown_loop`` thread. HA's verify_cleanup fixture
+    flags that lingering thread as a leak on some HA versions (e.g. 2025.1 on
+    Python 3.12), failing otherwise-passing tests at teardown. Tests never do
+    real DNS (aioresponses/mocks intercept), so the threaded resolver — which
+    uses the loop executor and leaves no daemon thread — is a safe drop-in.
+    """
+    from aiohttp.resolver import ThreadedResolver  # pylint: disable=import-outside-toplevel
+
+    with patch("aiohttp.connector.DefaultResolver", ThreadedResolver):
+        yield
+
+
+@pytest.fixture(autouse=True)
+def mock_config_flow_session():
+    """Stop the config flow from creating a real HA aiohttp ClientSession.
+
+    The flow calls async_get_clientsession(self.hass), which builds a session
+    with HA's own aiodns resolver (so the ThreadedResolver patch above does not
+    reach it) — spawning the same pycares daemon thread. The scraper calls are
+    already mocked per-test, so the session is never actually used.
+    """
+    with patch("custom_components.busminder.config_flow.async_get_clientsession", return_value=MagicMock()):
+        yield
+
+
 @pytest.fixture
 def config_entry_data():
     return {
