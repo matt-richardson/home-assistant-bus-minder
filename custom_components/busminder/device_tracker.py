@@ -71,10 +71,6 @@ class BusTrackerEntity(BusMinderEntity, TrackerEntity):
         return pos.lng if pos else None
 
     @property
-    def battery_level(self) -> None:
-        return None
-
-    @property
     def location_accuracy(self) -> int:
         return 50  # metres (estimated GPS accuracy for a moving bus)
 
