@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.4.3](https://github.com/matt-richardson/home-assistant-bus-minder/compare/v1.4.2...v1.4.3) (2026-08-05)
+
+
+### Bug Fixes
+
+* remove deprecated battery_level property ([#16](https://github.com/matt-richardson/home-assistant-bus-minder/issues/16)) ([9dbfa4d](https://github.com/matt-richardson/home-assistant-bus-minder/commit/9dbfa4d9aaf4a2fb63587508c3d85dc8442818f3))
+
 ## [1.4.2](https://github.com/matt-richardson/home-assistant-bus-minder/compare/v1.4.1...v1.4.2) (2026-06-20)
 
 
